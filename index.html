@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>たまむらふぃーるど WebARカメラデモ</title>
+    <style>
+        :root {
+            --primary: #10b981;
+            --dark: #0f172a;
+        }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: sans-serif; overflow: hidden; background-color: black;
+        }
+        
+        /* 全画面カメラ映像エリア */
+        #container {
+            width: 100%; height: 100%; position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        video {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: cover; z-index: 1;
+        }
+
+        /* カメラのフラッシュエフェクト */
+        #flash {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; z-index: 2; pointer-events: none;
+        }
+
+        /* UI（HUD）レイヤー */
+        .hud {
+            position: absolute; top: 20px; left: 15px; right: 15px;
+            display: flex; justify-content: space-between; z-index: 3;
+        }
+        .status-card {
+            background: rgba(15, 23, 42, 0.75); padding: 10px 15px;
+            border-radius: 20px; font-weight: bold; font-size: 14px; color: white;
+            backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2);
+        }
+        #point-display { color: #34d399; font-size: 18px; }
+
+        /* AR空間に浮遊するモンスター */
+        #monster-area {
+            position: relative; display: flex; flex-direction: column;
+            align-items: center; z-index: 3;
+            /* 浮遊感を出すアニメーション */
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        #monster {
+            font-size: 130px; line-height: 1; user-select: none;
+            filter: drop-shadow(0 8px 10px rgba(0,0,0,0.4));
+            transition: all 0.2s ease;
+        }
+        
+        /* HPバー */
+        .hp-container {
+            width: 120px; height: 8px; background: rgba(255,255,255,0.4);
+            border-radius: 4px; margin-top: 15px; overflow: hidden;
+        }
+        #hp-bar {
+            width: 100%; height: 100%; background: #ef4444;
+            transition: width 0.1s ease;
+        }
+
+        /* カメラのシャッター風 攻撃ボタン */
+        #shutter-btn {
+            position: absolute; bottom: 40px; z-index: 3;
+            width: 80px; height: 80px; border-radius: 50%;
+            background: white; border: 4px solid #fff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        #shutter-btn-inner {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: #ef4444; /* 赤いボタン */
+            transition: background 0.2s, transform 0.1s;
+        }
+        #shutter-btn:active #shutter-btn-inner {
+            transform: scale(0.9);
+            background: #b91c1c;
+        }
+
+        /* ガイドメッセージ */
+        #guide-text {
+            position: absolute; bottom: 130px; z-index: 3;
+            color: white; background: rgba(0,0,0,0.6); padding: 6px 16px;
+            border-radius: 15px; font-size: 14px; font-weight: bold;
+        }
+
+        /* ヒット時の火花エフェクト */
+        .spark {
+            position: absolute; color: #ffeb3b; font-size: 40px; font-weight: bold;
+            text-shadow: 0 0 8px #ff5722; animation: explode 0.4s ease-out forwards;
+            pointer-events: none; z-index: 4;
+        }
+        @keyframes explode {
+            0% { transform: scale(0.5); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        .shake { animation: shakeEffect 0.15s linear; }
+        @keyframes shakeEffect {
+            0% { transform: translate(4px, 0); }
+            50% { transform: translate(-4px, 0); }
+            100% { transform: translate(0, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="flash"></div>
+
+    <div class="hud">
+        <div class="status-card" id="info-text">公共施設 ARエリア</div>
+        <div class="status-card">獲得：<span id="point-display">0</span> PT</div>
+    </div>
+
+    <div id="monster-area">
+        <div id="monster">🦖</div>
+        <div class="hp-container">
+            <div id="hp-bar"></div>
+        </div>
+    </div>
+
+    <div id="guide-text">シャッターを押して攻撃！ (0/10)</div>
+    <div id="shutter-btn">
+        <div id="shutter-btn-inner"></div>
+    </div>
+</div>
+
+<script>
+    let hits = 0;
+    const maxHits = 10;
+    let points = 0;
+
+    const video = document.getElementById('video');
+    const flash = document.getElementById('flash');
+    const monster = document.getElementById('monster');
+    const monsterArea = document.getElementById('monster-area');
+    const hpBar = document.getElementById('hp-bar');
+    const shutterBtn = document.getElementById('shutter-btn');
+    const shutterInner = document.getElementById('shutter-btn-inner');
+    const pointDisplay = document.getElementById('point-display');
+    const guideText = document.getElementById('guide-text');
+    const infoText = document.getElementById('info-text');
+
+    // スマホのアウトカメラ（背面カメラ）を起動する設定
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { exact: "environment" } }, // 外カメラ優先
+                audio: false
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            // PCや外カメラがない場合は通常のカメラで代用
+            try {
+                const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = fallbackStream;
+            } catch (e) {
+                infoText.innerText = "カメラ起動エラー（ブラウザ設定を確認）";
+                infoText.style.color = "#ef4444";
+            }
+        }
+    }
+
+    // シャッターボタン＝攻撃処理
+    function shoot(e) {
+        if (hits >= maxHits) return;
+
+        hits++;
+        
+        // 1. フラッシュ演出
+        flash.style.opacity = '0.7';
+        setTimeout(() => flash.style.opacity = '0', 80);
+
+        // 2. HPバーとテキストの更新
+        const hpPercent = ((maxHits - hits) / maxHits) * 100;
+        hpBar.style.width = hpPercent + '%';
+        guideText.innerText = `シャッターを押して攻撃！ (${hits}/${maxHits})`;
+
+        // 3. モンスターのノックバック・火花演出
+        monster.classList.add('shake');
+        setTimeout(() => monster.classList.remove('shake'), 150);
+        createSpark();
+
+        // 4. 10回撃破判定
+        if (hits === maxHits) {
+            defeat();
+        }
+    }
+
+    function createSpark() {
+        const spark = document.createElement('div');
+        spark.className = 'spark';
+        spark.innerText = '💥';
+        
+        // モンスターの中心付近に火花を散らす
+        const rect = monster.getBoundingClientRect();
+        spark.style.left = (rect.left + rect.width / 2 - 20) + 'px';
+        spark.style.top = (rect.top + rect.height / 2 - 20) + 'px';
+        
+        document.getElementById('container').appendChild(spark);
+        setTimeout(() => spark.remove(), 400);
+    }
+
+    function defeat() {
+        monster.style.transform = 'scale(0) rotate(360deg)';
+        guideText.innerText = 'ミッションコンプリート！';
+        shutterInner.style.background = '#10b981'; // ボタンを緑に
+        
+        points += 10;
+        pointDisplay.innerText = points;
+
+        // 3秒後にリセット（デモのループ）
+        setTimeout(() => {
+            hits = 0;
+            hpBar.style.width = '100%';
+            monster.style.transform = 'scale(1) rotate(0deg)';
+            shutterInner.style.background = '#ef4444';
+            guideText.innerText = `シャッターを押して攻撃！ (${hits}/${maxHits})`;
+        }, 3000);
+    }
+
+    shutterBtn.addEventListener('click', shoot);
+    window.addEventListener('load', startCamera);
+</script>
+
+</body>
+</html>
