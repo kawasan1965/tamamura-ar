@@ -8,8 +8,8 @@
         :root {
             --primary: #005088;
             --accent: #facc15;
-            --danger: #ef4444;
             --dark: #0f172a;
+            --danger: #ef4444;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
         body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: black; color: white; overflow: hidden; }
@@ -30,20 +30,22 @@
         #hp-bar { width: 100%; height: 100%; background: var(--danger); transition: width 0.1s; }
         #hp-text { color: white; font-size: 12px; font-weight: bold; margin-top: 5px; text-shadow: 1px 1px 3px black; z-index: 6; }
         
-        #instruction { background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; margin: 10px auto; z-index: 10; text-align: center; width: 80%; border: 1px solid rgba(255,255,255,0.2); position: relative; backdrop-filter: blur(4px); }
+        #instruction { background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; margin: 10px auto; z-index: 10; text-align: center; width: 80%; border: 1px solid rgba(255,255,255,0.2); position: relative; backdrop-filter: blur(4px); color: white; }
         
         .controls { width: 100%; background: rgba(15, 23, 42, 0.95); padding: 20px 15px 40px 15px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; position: fixed; bottom: 0; left: 0; border-top: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .abc-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 18px 0; font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer; box-shadow: 0 4px #1e293b, 0 4px 10px rgba(0,0,0,0.3); transition: all 0.1s; }
-        .abc-btn:active:not(.disabled) { transform: translateY(2px); box-shadow: 0 2px #1e293b; }
+        .abc-btn:active { transform: translateY(2px); box-shadow: 0 2px #1e293b; }
         
+        /* 選択状態（青） */
         .abc-btn.selected { background: #2563eb !important; color: white !important; box-shadow: 0 4px #1d4ed8, 0 4px 10px rgba(37,99,235,0.3) !important; }
-        .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; box-shadow: 0 4px #ca8a04, 0 0 15px var(--accent) !important; animation: pulse 1s infinite alternate; }
-        @keyframes pulse { 0% { opacity: 0.9; } 100% { opacity: 1; transform: scale(1.02); } }
         
-        #shoot-btn { width: 100%; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; box-shadow: 0 5px #991b1b, 0 4px 10px rgba(220,38,38,0.4); cursor: pointer; transition: all 0.1s; }
-        #shoot-btn:active:not(.disabled) { transform: translateY(3px); box-shadow: 0 2px #991b1b; }
-        #shoot-btn.ready { background: linear-gradient(135deg, #f59e0b, #d97706) !important; box-shadow: 0 5px #92400e, 0 4px 12px rgba(245,158,11,0.4) !important; }
+        /* 【重要】光るアニメーション（黄色）が確実に見えるようにスタイルを固定 */
+        .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; box-shadow: 0 4px #ca8a04, 0 0 15px var(--accent) !important; animation: pulse 0.8s infinite alternate !important; }
+        @keyframes pulse { 0% { transform: scale(0.98); opacity: 0.9; } 100% { transform: scale(1.04); opacity: 1; } }
+        
+        #shoot-btn { width: 100%; background: linear-gradient(135deg, #475569, #334155); color: #94a3b8; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; box-shadow: 0 5px #1e293b; cursor: pointer; transition: all 0.1s; }
+        #shoot-btn.ready { background: linear-gradient(135deg, #f59e0b, #d97706) !important; color: white !important; box-shadow: 0 5px #92400e, 0 4px 12px rgba(245,158,11,0.4) !important; }
 
         .sparkle { position: absolute; font-size: 40px; animation: burst 0.4s ease-out forwards; pointer-events: none; z-index: 20; text-shadow: 0 0 8px #ff5722; }
         @keyframes burst { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
@@ -56,7 +58,6 @@
         .res-title { font-size: 32px; color: var(--accent); margin-bottom: 20px; font-weight: bold; font-family: serif; }
         .res-body { font-size: 16px; margin-bottom: 30px; line-height: 1.6; color: #cbd5e1; }
         .back-btn { background: #10b981; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; width: 80%; max-width: 280px; box-shadow: 0 4px #059669; }
-        .back-btn:active { transform: translateY(2px); box-shadow: 0 2px #059669; }
     </style>
 </head>
 <body>
@@ -66,7 +67,7 @@
 
     <div class="hud">
         <div class="hud-card">タイム: <span id="timer">30</span> 秒</div>
-        <div class="hud-card" id="loc-name">バトルエリア</div>
+        <div class="hud-card" id="loc-name">玉村町エリア</div>
         <div class="hud-card">獲得: <span id="score">0</span> PT</div>
     </div>
 
@@ -84,4 +85,229 @@
             <button id="btn-b" class="abc-btn" onclick="tapAbc('B')">B</button>
             <button id="btn-c" class="abc-btn" onclick="tapAbc('C')">C</button>
         </div>
-        <button id="shoot-btn"
+        <button id="shoot-btn" onclick="attack()">攻撃ボタンD</button>
+    </div>
+
+    <div id="resBoard" class="result">
+        <div class="res-title" id="resTitle">LEVEL 1 CLEAR!</div>
+        <div class="res-body" id="resBody">結果</div>
+        <button class="back-btn" onclick="back()">マップに戻る</button>
+    </div>
+
+    <script>
+        let hp = 100, score = 0, time = 30;
+        let target = '', selected = '';
+        let timerInterval, bgmInterval, audioCtx;
+
+        window.onload = function() {
+            // 安全対策：データの読み込みで万が一エラーが起きてもゲームを止めない仕組み（Try-Catch）
+            try {
+                let savedName = sessionStorage.getItem('current_battle_name');
+                let savedMonster = sessionStorage.getItem('current_battle_monster');
+                
+                if (savedName) document.getElementById('loc-name').innerText = savedName;
+                if (savedMonster) document.getElementById('active-monster').innerText = savedMonster;
+            } catch (e) {
+                console.log("データの復元にスキップ処理を適用しました");
+            }
+            
+            // WebAR背面カメラ起動
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+                    .then(stream => { document.getElementById('video').srcObject = stream; })
+                    .catch(() => { console.log("疑似ARモードで起動"); });
+            }
+
+            // オーディオの初期化
+            initAudio();
+            
+            // 【最重要】強制的にゲームを開始させる
+            setTimeout(() => {
+                startBpmMusic();
+                nextTurn();
+            }, 300);
+
+            // カウントダウンタイマー
+            timerInterval = setInterval(() => {
+                time--;
+                document.getElementById('timer').innerText = time;
+                if(time <= 0) end(false, "タイムアップ！");
+            }, 1000);
+        };
+
+        // 次のターゲット（正解ボタン）をランダム指定する処理
+        function nextTurn() {
+            // いったんリセット
+            ['A','B','C'].forEach(l => {
+                const el = document.getElementById(`btn-${l.toLowerCase()}`);
+                if(el) el.className = 'abc-btn'; // クラスを初期化して干渉を防ぐ
+            });
+            selected = '';
+            
+            const dBtn = document.getElementById('shoot-btn');
+            if(dBtn) {
+                dBtn.classList.remove('ready');
+                dBtn.style.background = 'linear-gradient(135deg, #475569, #334155)';
+                dBtn.style.color = '#94a3b8';
+            }
+            
+            // ランダムでA, B, Cのどれかをターゲットにする
+            const choices = ['A','B','C'];
+            target = choices[Math.floor(Math.random() * 3)];
+            
+            const targetEl = document.getElementById(`btn-${target.toLowerCase()}`);
+            if(targetEl) {
+                targetEl.classList.add('highlight'); // 黄色く点滅させる
+            }
+            
+            document.getElementById('instruction').innerText = `選択ボタン【 ${target} 】を押そう！`;
+        }
+
+        // 選択ボタンA,B,Cをタップしたとき
+        function tapAbc(l) {
+            ['a','b','c'].forEach(i => {
+                const el = document.getElementById(`btn-${i}`);
+                if(el && i !== target.toLowerCase()) el.classList.remove('selected');
+            });
+            
+            selected = l;
+            const myBtn = document.getElementById(`btn-${l.toLowerCase()}`);
+            if(myBtn) myBtn.classList.add('selected');
+            
+            if(selected === target) {
+                const dBtn = document.getElementById('shoot-btn');
+                if(dBtn) {
+                    dBtn.classList.add('ready'); // Dボタンをオレンジ色にする
+                }
+                document.getElementById('instruction').innerText = "準備完了！ 攻撃ボタンDを狙え！";
+                playTone(440, 'triangle', 0.1, 0.2); 
+            } else {
+                const dBtn = document.getElementById('shoot-btn');
+                if(dBtn) dBtn.classList.remove('ready');
+                document.getElementById('instruction').innerText = `ちがうよ！【 ${target} 】を押してね！`;
+                playTone(220, 'sawtooth', 0.1, 0.1); 
+            }
+        }
+
+        // 攻撃ボタンDを押したとき
+        function attack() {
+            if(selected !== target) {
+                playTone(150, 'sawtooth', 0.2, 0.3);
+                const dBtn = document.getElementById('shoot-btn');
+                if(dBtn) dBtn.classList.remove('ready');
+                document.getElementById('instruction').innerText = `先に【 ${target} 】を選んでね！`;
+                return;
+            }
+            
+            hp -= 20; 
+            score += 10;
+            if (hp < 0) hp = 0;
+
+            document.getElementById('score').innerText = score;
+            document.getElementById('hp-bar').style.width = `${hp}%`;
+            document.getElementById('hp-text').innerText = `HP: ${hp} / 100`;
+            
+            triggerHitEffects();
+
+            if(hp <= 0) {
+                end(true, "レベル1 クリア！");
+            } else {
+                nextTurn();
+            }
+        }
+
+        function triggerHitEffects() {
+            document.getElementById('flash').style.opacity = '0.6';
+            setTimeout(() => document.getElementById('flash').style.opacity = '0', 50);
+            
+            const monsterEl = document.getElementById('active-monster');
+            if(monsterEl) {
+                monsterEl.classList.add('shake');
+                setTimeout(() => monsterEl.classList.remove('shake'), 150);
+                
+                const rect = monsterEl.getBoundingClientRect();
+                const spark = document.createElement('div');
+                spark.className = 'sparkle';
+                spark.innerText = '💥';
+                spark.style.left = (rect.left + rect.width / 2 - 20) + 'px';
+                spark.style.top = (rect.top + rect.height / 2 - 20) + 'px';
+                document.body.appendChild(spark);
+                setTimeout(() => spark.remove(), 400);
+
+                const pop = document.createElement('div');
+                pop.className = 'damage-pop';
+                pop.innerText = '-10';
+                pop.style.left = (rect.left + rect.width / 2 - 20) + 'px';
+                pop.style.top = (rect.top - 20) + 'px';
+                document.body.appendChild(pop);
+                setTimeout(() => pop.remove(), 500);
+            }
+
+            playTone(180, 'sawtooth', 0.15, 0.3);
+            playTone(90, 'square', 0.2, 0.4);
+        }
+
+        function end(success, msg) {
+            clearInterval(timerInterval);
+            clearInterval(bgmInterval);
+            
+            document.getElementById('resBoard').style.display = 'flex';
+            document.getElementById('resTitle').innerText = success ? "LEVEL 1 CLEAR!" : "GAME OVER";
+            document.getElementById('resBody').innerHTML = `${msg}<br><br><span style="color:#facc15;font-size:24px;font-weight:bold;">+ ${score} PT 獲得！</span>`;
+            
+            if(success) {
+                let total = parseInt(localStorage.getItem('tamamura_points_demo') || '0');
+                localStorage.setItem('tamamura_points_demo', total + score);
+                playFanfare();
+            } else {
+                playTone(100, 'sawtooth', 0.8, 0.5);
+            }
+        }
+
+        function back() { window.location.href = 'index.html'; }
+
+        function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch(e) { console.log("Audio Error"); }
+        }
+
+        function playTone(freq, type, duration, volume) {
+            if(!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator(), gainNode = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function startBpmMusic() {
+            const notesTrack1 = [261.63, 293.66, 329.63, 349.23, 392.00, 349.23, 329.63, 293.66]; 
+            const notesTrack2 = [196.00, 220.00, 246.94, 261.63, 293.66, 261.63, 246.94, 220.00]; 
+            let index = 0;
+
+            bgmInterval = setInterval(() => {
+                playTone(notesTrack1[index], 'square', 0.2, 0.04);
+                if (index % 2 === 0) {
+                    playTone(notesTrack2[index], 'triangle', 0.3, 0.06);
+                }
+                if (index % 4 === 2) {
+                    playTone(587.33, 'sine', 0.1, 0.02); 
+                }
+                index = (index + 1) % notesTrack1.length;
+            }, 250);
+        }
+
+        function playFanfare() {
+            setTimeout(() => playTone(523.25, 'square', 0.15, 0.1), 0);   
+            setTimeout(() => playTone(587.33, 'square', 0.15, 0.1), 150); 
+            setTimeout(() => playTone(659.25, 'square', 0.15, 0.1), 300); 
+            setTimeout(() => playTone(783.99, 'square', 0.4, 0.1), 450);  
+        }
+    </script>
+</body>
+</html>
