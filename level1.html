@@ -17,54 +17,32 @@
         video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
         #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 2; pointer-events: none; }
         
-        /* 画面全体を縦の並び順で綺麗に整理 */
-        .main-wrapper {
-            position: relative; width: 100%; height: 100%;
-            display: flex; flex-direction: column; justify-content: space-between; z-index: 5;
-        }
-
-        .hud { width: 100%; display: flex; justify-content: space-between; padding: 15px; }
+        .hud { width: 100%; display: flex; justify-content: space-between; padding: 15px; z-index: 10; position: relative; }
         .hud-card { background: rgba(15, 23, 42, 0.85); padding: 8px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(4px); }
         #timer { color: #f87171; font-size: 14px; }
         #score { color: #34d399; font-size: 14px; }
         
-        /* モンスターエリア：スマホの縦幅に合わせて縮むよう柔軟に設定 */
-        .arena { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; min-height: 0; }
-        #active-monster { font-size: 28vw; max-size: 140px; filter: drop-shadow(0 8px 15px rgba(0,0,0,0.6)); transition: all 0.2s ease; animation: float 3s ease-in-out infinite; line-height: 1; }
+        .arena { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; position: relative; height: 45vh; }
+        #active-monster { font-size: 120px; filter: drop-shadow(0 8px 15px rgba(0,0,0,0.6)); transition: all 0.2s ease; animation: float 3s ease-in-out infinite; line-height: 1; }
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
         
         .hp-frame { width: 160px; height: 12px; background: rgba(255,255,255,0.3); border-radius: 6px; margin-top: 15px; overflow: hidden; border: 1px solid black; }
         #hp-bar { width: 100%; height: 100%; background: var(--danger); transition: width 0.1s; }
-        #hp-text { color: white; font-size: 12px; font-weight: bold; margin-top: 5px; text-shadow: 1px 1px 3px black; }
+        #hp-text { color: white; font-size: 12px; font-weight: bold; margin-top: 5px; text-shadow: 1px 1px 3px black; z-index: 6; }
         
-        /* 【大改良】文字がボタンと絶対に重ならない独立したメッセージボードエリア */
-        .message-board {
-            width: 100%; display: flex; justify-content: center; padding: 5px 15px;
-        }
-        #instruction { 
-            background: rgba(0,0,0,0.85); padding: 10px 15px; border-radius: 20px; 
-            font-size: 14px; font-weight: bold; text-align: center; width: 100%; max-width: 340px;
-            border: 2px solid var(--accent); backdrop-filter: blur(4px); color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
+        #instruction { background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; margin: 10px auto; z-index: 10; text-align: center; width: 80%; border: 1px solid rgba(255,255,255,0.2); position: relative; backdrop-filter: blur(4px); color: white; }
         
-        /* 操作パネル：重なりを防ぐため下部に固定し、画面最下部の余白も考慮 */
-        .controls { 
-            width: 100%; background: rgba(15, 23, 42, 0.95); padding: 15px 15px calc(20px + window.safe-area-inset-bottom) 15px; 
-            border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 12px; 
-            border-top: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
-        }
+        .controls { width: 100%; background: rgba(15, 23, 42, 0.95); padding: 20px 15px 40px 15px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; position: fixed; bottom: 0; left: 0; border-top: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .abc-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 16px 0; font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer; box-shadow: 0 4px #1e293b; transition: all 0.1s; }
+        .abc-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 18px 0; font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer; box-shadow: 0 4px #1e293b, 0 4px 10px rgba(0,0,0,0.3); transition: all 0.1s; }
         .abc-btn:active { transform: translateY(2px); box-shadow: 0 2px #1e293b; }
         
-        .abc-btn.selected { background: #2563eb !important; color: white !important; box-shadow: 0 4px #1d4ed8 !important; }
+        .abc-btn.selected { background: #2563eb !important; color: white !important; box-shadow: 0 4px #1d4ed8, 0 4px 10px rgba(37,99,235,0.3) !important; }
         .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; box-shadow: 0 4px #ca8a04, 0 0 15px var(--accent) !important; animation: pulse 0.8s infinite alternate !important; }
         @keyframes pulse { 0% { transform: scale(0.98); opacity: 0.9; } 100% { transform: scale(1.04); opacity: 1; } }
         
-        #shoot-btn { width: 100%; background: linear-gradient(135deg, #475569, #334155); color: #94a3b8; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; box-shadow: 0 4px #1e293b; cursor: pointer; transition: all 0.1s; }
-        #shoot-btn:active { transform: translateY(3px); box-shadow: 0 1px #1e293b; }
-        #shoot-btn.ready { background: linear-gradient(135deg, #f59e0b, #d97706) !important; color: white !important; box-shadow: 0 4px #92400e !important; }
+        #shoot-btn { width: 100%; background: linear-gradient(135deg, #475569, #334155); color: #94a3b8; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; box-shadow: 0 5px #1e293b; cursor: pointer; transition: all 0.1s; }
+        #shoot-btn.ready { background: linear-gradient(135deg, #f59e0b, #d97706) !important; color: white !important; box-shadow: 0 5px #92400e, 0 4px 12px rgba(245,158,11,0.4) !important; }
 
         .sparkle { position: absolute; font-size: 40px; animation: burst 0.4s ease-out forwards; pointer-events: none; z-index: 20; text-shadow: 0 0 8px #ff5722; }
         @keyframes burst { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
@@ -84,33 +62,27 @@
     <video id="video" autoplay playsinline muted></video>
     <div id="flash"></div>
 
-    <div class="main-wrapper">
-        
-        <div class="hud">
-            <div class="hud-card">タイム: <span id="timer">30</span> 秒</div>
-            <div class="hud-card" id="loc-name">玉村町エリア</div>
-            <div class="hud-card">獲得: <span id="score">0</span> PT</div>
-        </div>
+    <div class="hud">
+        <div class="hud-card">タイム: <span id="timer">30</span> 秒</div>
+        <div class="hud-card" id="loc-name">玉村町エリア</div>
+        <div class="hud-card">獲得: <span id="score">0</span> PT</div>
+    </div>
 
-        <div class="arena">
-            <div id="active-monster">🦖</div>
-            <div class="hp-frame"><div id="hp-bar"></div></div>
-            <div id="hp-text">HP: 100 / 100</div>
-        </div>
+    <div class="arena">
+        <div id="active-monster">🦖</div>
+        <div class="hp-frame"><div id="hp-bar"></div></div>
+        <div id="hp-text">HP: 100 / 100</div>
+    </div>
 
-        <div class="message-board">
-            <div id="instruction">光るボタンを選択しよう！</div>
-        </div>
+    <div id="instruction">光るボタンを選択しよう！</div>
 
-        <div class="controls">
-            <div class="grid-3">
-                <button id="btn-a" class="abc-btn" onclick="tapAbc('A')">A</button>
-                <button id="btn-b" class="abc-btn" onclick="tapAbc('B')">B</button>
-                <button id="btn-c" class="abc-btn" onclick="tapAbc('C')">C</button>
-            </div>
-            <button id="shoot-btn" onclick="attack()">攻撃ボタンD</button>
+    <div class="controls">
+        <div class="grid-3">
+            <button id="btn-a" class="abc-btn" onclick="tapAbc('A')">A</button>
+            <button id="btn-b" class="abc-btn" onclick="tapAbc('B')">B</button>
+            <button id="btn-c" class="abc-btn" onclick="tapAbc('C')">C</button>
         </div>
-        
+        <button id="shoot-btn" onclick="attack()">攻撃ボタンD</button>
     </div>
 
     <div id="resBoard" class="result">
@@ -123,6 +95,8 @@
         let hp = 100, score = 0, time = 30;
         let target = '', selected = '';
         let timerInterval, bgmInterval, audioCtx;
+        
+        // 【重要バグ修正】メッセージをタイマーに邪魔されず固定するためのフラグ
         let isMessageLocked = false; 
 
         window.onload = function() {
@@ -157,7 +131,8 @@
         };
 
         function nextTurn() {
-            isMessageLocked = false; 
+            isMessageLocked = false; // 新しいターンになったらメッセージロックを解除
+            
             ['A','B','C'].forEach(l => {
                 const el = document.getElementById(`btn-${l.toLowerCase()}`);
                 if(el) el.className = 'abc-btn'; 
@@ -193,12 +168,13 @@
             if(myBtn) myBtn.classList.add('selected');
             
             if(selected === target) {
-                isMessageLocked = false; 
+                isMessageLocked = false; // 正解した場合はガイド表示を通常に戻す
                 const dBtn = document.getElementById('shoot-btn');
                 if(dBtn) dBtn.classList.add('ready'); 
                 document.getElementById('instruction').innerText = "準備完了！ 攻撃ボタンDを狙え！";
                 playTone(440, 'triangle', 0.1, 0.2); 
             } else {
+                // 【完全修正】間違えたメッセージをBGMに邪魔させないようロック
                 isMessageLocked = true; 
                 const dBtn = document.getElementById('shoot-btn');
                 if(dBtn) dBtn.classList.remove('ready');
@@ -209,7 +185,7 @@
 
         function attack() {
             if(selected !== target) {
-                isMessageLocked = true; 
+                isMessageLocked = true; // 空振りメッセージをロック
                 playTone(150, 'sawtooth', 0.2, 0.3);
                 const dBtn = document.getElementById('shoot-btn');
                 if(dBtn) dBtn.classList.remove('ready');
@@ -297,7 +273,7 @@
                 osc.type = type;
                 osc.frequency.value = freq;
                 gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, duration);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, application) || 0.001;
                 osc.connect(gainNode); gainNode.connect(audioCtx.destination);
                 osc.start(); osc.stop(audioCtx.currentTime + duration);
             } catch(e){}
@@ -317,14 +293,21 @@
                     playTone(587.33, 'sine', 0.1, 0.02); 
                 }
                 
+                // 【バグの主因を解決】ロックがかかっていない場合のみ、ガイドテキストの定期更新を行う
                 if (!isMessageLocked) {
                     document.getElementById('instruction').innerText = selected === target ? "準備完了！ 攻撃ボタンDを狙え！" : `選択ボタン【 ${target} 】を押そう！`;
                 }
 
                 index = (index + 1) % notesTrack1.length;
-            }, 250); 
+            }, 250); // 0.25秒に1回上書きされていた競合をブロック！
         }
 
         function playFanfare() {
             setTimeout(() => playTone(523.25, 'square', 0.15, 0.1), 0);   
-            setTimeout(() => playTone(587.33, 'square', 0.15,
+            setTimeout(() => playTone(587.33, 'square', 0.15, 0.1), 150); 
+            setTimeout(() => playTone(659.25, 'square', 0.15, 0.1), 300); 
+            setTimeout(() => playTone(783.99, 'square', 0.4, 0.1), 450);  
+        }
+    </script>
+</body>
+</html>
