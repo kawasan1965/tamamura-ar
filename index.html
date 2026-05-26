@@ -3,335 +3,469 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>たまむらふぃーるど - レベル1(WebARカメラ版)</title>
+    <title>たまむらふぃーるど ARポータル</title>
     <style>
         :root {
-            --primary: #10b981;
+            --primary: #005088;
+            --accent: #facc15;
+            --danger: #ef4444;
             --dark: #0f172a;
-            --highlight: #facc15;
+            --light: #f8fafc;
         }
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            font-family: sans-serif; overflow: hidden; background-color: black;
-            user-select: none; -webkit-user-select: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--dark); color: var(--light); overflow: hidden; }
         
-        /* 全画面カメラ映像エリア */
-        #game-container {
-            width: 100%; height: 100%; position: relative;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-        }
-        video {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%; object-fit: cover; z-index: 1;
-        }
+        /* 画面切り替え用のコンテナ */
+        .screen { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        .screen.active { display: flex; flex-direction: column; }
 
-        /* カメラのフラッシュエフェクト */
+        /* --- 1. マップ画面のスタイル --- */
+        #map-screen { background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); }
+        .header { background: rgba(15, 23, 42, 0.9); padding: 15px; text-align: center; border-bottom: 2px solid var(--primary); z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .header h1 { font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+        .serial-badge { display: inline-block; background: #334155; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin-top: 5px; color: #cbd5e1; border: 1px solid #475569; }
+        
+        /* 簡易地図エリア */
+        .map-container { flex-grow: 1; position: relative; width: 100%; background-color: #151f32; overflow: hidden; }
+        /* 抽象的な玉村町グリッド背景 */
+        .map-bg-grid { position: absolute; width: 100%; height: 100%; background-size: 40px 40px; background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); }
+        .map-river { position: absolute; bottom: 10%; left: 0; width: 100%; height: 40px; background: rgba(37, 99, 235, 0.2); transform: skewY(-5deg); border-top: 2px dashed rgba(37, 99, 235, 0.4); }
+        
+        /* 拠点ピンの配置 */
+        .pin { position: absolute; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.4); border: 2px solid white; animation: pulse 2s infinite alternate; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 100% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } }
+        .pin-inner { transform: rotate(45deg); font-size: 16px; }
+        .pin-label { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.85); color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.2); }
+        
+        /* ピンの色定義 */
+        .type-factory { background: #4f46e5; }
+        .type-child { background: #f59e0b; }
+        .type-library { background: #10b981; }
+        .type-school { background: #ef4444; }
+        .type-community { background: #06b6d4; }
+
+        /* 下部ステータス */
+        .footer-status { background: #1e293b; padding: 12px; text-align: center; font-size: 13px; color: #94a3b8; border-top: 1px solid #334155; }
+
+        /* 拠点詳細ポップアップ */
+        .popup-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+        .popup-content { background: #1e293b; border-radius: 16px; width: 100%; max-width: 320px; padding: 20px; border: 2px solid var(--primary); text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .popup-title { font-size: 18px; color: var(--accent); margin-bottom: 8px; font-weight: bold; }
+        .popup-monster { font-size: 64px; margin: 15px 0; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        .popup-karuta { background: #0f172a; padding: 10px; border-radius: 8px; font-size: 13px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid var(--accent); text-align: left; line-height: 1.4; }
+        .popup-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 24px; font-size: 15px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(5,150,105,0.3); }
+
+        /* --- 2. ゲーム画面のスタイル --- */
+        #game-screen { background: black; }
+        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
         #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 2; pointer-events: none; }
-
-        /* 画面上部：HUD（情報表示） */
-        .hud {
-            width: calc(100% - 30px); display: flex; justify-content: space-between; margin-top: 20px; z-index: 10;
-        }
-        .status-card {
-            background: rgba(15, 23, 42, 0.8); padding: 10px 15px; border-radius: 20px;
-            font-weight: bold; font-size: 14px; color: white; backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 8px;
-        }
-        #timer { color: #f87171; font-size: 18px; }
-        #score { color: #34d399; font-size: 18px; }
-
-        /* 中央：AR空間に浮遊する敵モンスターエリア */
-        #enemy-area {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            flex-grow: 1; z-index: 5; position: relative; margin-bottom: 20px;
-            animation: float 3s ease-in-out infinite;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-        }
-        #enemy {
-            font-size: 130px; line-height: 1; filter: drop-shadow(0 8px 10px rgba(0,0,0,0.5));
-            transition: all 0.2s ease;
-        }
-        .hp-container {
-            width: 140px; height: 10px; background: rgba(255,255,255,0.4);
-            border-radius: 5px; margin-top: 15px; overflow: hidden;
-        }
-        #hp-bar { width: 100%; height: 100%; background: #ef4444; transition: width 0.1s ease; }
-
-        /* ナビゲーションメッセージ */
-        #guide-msg {
-            background: rgba(0,0,0,0.6); color: white; padding: 6px 16px; border-radius: 15px;
-            font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 10px; z-index: 10;
-            backdrop-filter: blur(4px);
-        }
-
-        /* 下部：ボタン操作エリア */
-        .control-panel {
-            width: 100%; background: rgba(15, 23, 42, 0.85); padding: 20px 0 40px 0;
-            border-radius: 25px 25px 0 0; display: flex; flex-direction: column; align-items: center;
-            gap: 15px; box-shadow: 0 -10px 25px rgba(0,0,0,0.4); border-top: 1px solid rgba(255,255,255,0.2); z-index: 10;
-            backdrop-filter: blur(8px);
-        }
-        .button-grid {
-            width: calc(100% - 30px); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-        }
+        .hud-container { width: 100%; display: flex; justify-content: space-between; padding: 15px; z-index: 10; position: relative; }
+        .hud-card { background: rgba(15, 23, 42, 0.85); padding: 8px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(4px); }
+        #game-timer { color: #f87171; }
+        #game-score { color: #34d399; }
         
-        /* 基本ボタン定義 */
-        .btn {
-            background: rgba(51, 65, 85, 0.8); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); padding: 18px 0;
-            font-size: 22px; font-weight: bold; border-radius: 16px; cursor: pointer;
-            box-shadow: 0 6px rgba(30, 41, 59, 0.9); transition: all 0.1s;
-        }
-        .btn:active { transform: translateY(4px); box-shadow: 0 2px rgba(30, 41, 59, 0.9); }
+        .arena { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; position: relative; }
+        #active-monster { font-size: 110px; line-height: 1; filter: drop-shadow(0 8px 15px rgba(0,0,0,0.6)); transition: transform 0.1s; }
+        .hp-frame { width: 150px; height: 12px; background: rgba(255,255,255,0.3); border-radius: 6px; margin-top: 15px; overflow: hidden; border: 1px solid rgba(0,0,0,0.5); }
+        #hp-bar { width: 100%; height: 100%; background: var(--danger); transition: width 0.1s; }
         
-        /* 選択状態（アクティブ） */
-        .btn.selected {
-            background: #2563eb !important; color: white !important; box-shadow: 0 6px #1d4ed8 !important;
-        }
-        /* ランダムハイライト状態 */
-        .btn.highlight {
-            background: var(--highlight) !important; color: var(--dark) !important;
-            box-shadow: 0 6px #ca8a04, 0 0 15px var(--highlight) !important;
-            text-shadow: none;
-        }
-
-        /* 攻撃ボタンD */
-        #btn-d {
-            width: calc(100% - 30px); background: linear-gradient(135deg, #ef4444, #dc2626); color: white;
-            font-size: 24px; letter-spacing: 2px; padding: 15px 0; border-radius: 16px; border: none; font-weight: bold;
-            box-shadow: 0 6px #991b1b, 0 8px 20px rgba(220,38,38,0.3); cursor: pointer; transition: all 0.1s;
-        }
-        #btn-d:active { transform: translateY(4px); box-shadow: 0 2px #991b1b; }
-        #btn-d.ready { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 6px #92400e; }
-
-        /* エフェクト用 */
-        .spark {
-            position: absolute; color: #ffeb3b; font-size: 40px; font-weight: bold;
-            text-shadow: 0 0 8px #ff5722; animation: explode 0.4s ease-out forwards; z-index: 6; pointer-events: none;
-        }
-        @keyframes explode { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
-        .shake { animation: shakeEffect 0.15s linear; }
-        @keyframes shakeEffect { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-8px,0); } 75% { transform: translate(8px,0); } }
+        #instruction { background: rgba(0,0,0,0.7); padding: 6px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-bottom: 15px; z-index: 10; text-align: center; max-width: 80%; border: 1px solid rgba(255,255,255,0.1); }
         
-        /* オーバーレイ */
-        .overlay {
-            position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.95);
-            display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; color:white; padding:20px; box-sizing:border-box;
-        }
-        .overlay h2 { font-size: 28px; color: var(--highlight); margin-bottom: 10px; text-align: center; }
-        .overlay p { font-size: 15px; color: #94a3b8; margin-bottom: 30px; text-align: center; max-width: 300px; line-height: 1.6; }
-        .start-btn {
-            background: var(--primary); color: white; border:none; padding:15px 40px; font-size:18px; font-weight:bold; border-radius:30px; cursor:pointer; box-shadow: 0 4px #059669;
-        }
+        .control-board { width: 100%; background: rgba(15, 23, 42, 0.9); padding: 20px 15px 35px 15px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; border-top: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .abc-btn { background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 15px 0; font-size: 20px; font-weight: bold; border-radius: 12px; box-shadow: 0 4px #1e293b; cursor: pointer; }
+        .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; box-shadow: 0 4px #ca8a04 !important; animation: blink 0.8s infinite alternate; }
+        @keyframes blink { 0% { opacity: 0.8; } 100% { opacity: 1; box-shadow: 0 0 12px var(--accent); } }
+        .abc-btn.selected { background: #2563eb !important; color: white !important; box-shadow: 0 4px #1d4ed8 !important; }
+        
+        #shoot-btn { width: 100%; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; box-shadow: 0 5px #991b1b; cursor: pointer; }
+        #shoot-btn.ready { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 5px #047857; }
+
+        /* 特殊エフェクト */
+        .sparkle { position: absolute; font-size: 40px; animation: burst 0.4s ease-out forwards; pointer-events: none; z-index: 20; }
+        @keyframes burst { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+        .shake { animation: shakeAnim 0.15s linear; }
+        @keyframes shakeAnim { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-6px,3px); } 75% { transform: translate(6px,-3px); } }
+
+        /* リザルト画面 */
+        .result-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; padding: 30px; text-align: center; }
+        .result-title { font-size: 32px; color: var(--accent); margin-bottom: 15px; font-family: serif; }
+        .result-body { font-size: 16px; color: #cbd5e1; margin-bottom: 30px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <video id="video" autoplay playsinline muted></video>
-    <div id="flash"></div>
+    <!-- ================= 1. ポータルマップ画面 ================= -->
+    <div id="map-screen" class="screen active">
+        <div class="header">
+            <h1>たまむらふぃーるど</h1>
+            <div id="serial-display" class="serial-badge">シリアル番号: 未読込</div>
+        </div>
+        
+        <div class="map-container">
+            <div class="map-bg-grid"></div>
+            <div class="map-river"></div>
+            
+            <!-- 15拠点のピンを動的に、かつ玉村町の地理バランスを考慮して配置 -->
+            <!-- ケアコム工場（中心要） -->
+            <div class="pin type-factory" style="top: 50%; left: 50%;" onclick="showLocation(0)">
+                <div class="pin-inner">🏭</div><div class="pin-label">ケアコム工場</div>
+            </div>
+            <!-- 児童館5つ -->
+            <div class="pin type-child" style="top: 25%; left: 45%;" onclick="showLocation(1)">
+                <div class="pin-inner">👶</div><div class="pin-label">健康の森児</div>
+            </div>
+            <div class="pin type-child" style="top: 65%; left: 25%;" onclick="showLocation(2)">
+                <div class="pin-inner">👶</div><div class="pin-label">西児童館</div>
+            </div>
+            <div class="pin type-child" style="top: 30%; left: 75%;" onclick="showLocation(3)">
+                <div class="pin-inner">👶</div><div class="pin-label">上陽児童館</div>
+            </div>
+            <div class="pin type-child" style="top: 45%; left: 35%;" onclick="showLocation(4)">
+                <div class="pin-inner">👶</div><div class="pin-label">中央児童館</div>
+            </div>
+            <div class="pin type-child" style="top: 75%; left: 65%;" onclick="showLocation(5)">
+                <div class="pin-inner">👶</div><div class="pin-label">南児童館</div>
+            </div>
+            <!-- 図書館 -->
+            <div class="pin type-library" style="top: 40%; left: 20%;" onclick="showLocation(6)">
+                <div class="pin-inner">📚</div><div class="pin-label">町立図書館</div>
+            </div>
+            <!-- 公民館（居場所） -->
+            <div class="pin type-community" style="top: 55%; left: 60%;" onclick="showLocation(7)">
+                <div class="pin-inner">🏡</div><div class="pin-label">公民館(居場所)</div>
+            </div>
+            <!-- 小学校5つ -->
+            <div class="pin type-school" style="top: 45%; left: 13%;" onclick="showLocation(8)">
+                <div class="pin-inner">🏫</div><div class="pin-label">玉村小</div>
+            </div>
+            <div class="pin type-school" style="top: 20%; left: 68%;" onclick="showLocation(9)">
+                <div class="pin-inner">🏫</div><div class="pin-label">上陽小</div>
+            </div>
+            <div class="pin type-school" style="top: 80%; left: 32%;" onclick="showLocation(10)">
+                <div class="pin-inner">🏫</div><div class="pin-label">芝根小</div>
+            </div>
+            <div class="pin type-school" style="top: 38%; left: 42%;" onclick="showLocation(11)">
+                <div class="pin-inner">🏫</div><div class="pin-label">中央小</div>
+            </div>
+            <div class="pin type-school" style="top: 68%; left: 75%;" onclick="showLocation(12)">
+                <div class="pin-inner">🏫</div><div class="pin-label">南小</div>
+            </div>
+            <!-- 中学校2つ -->
+            <div class="pin type-school" style="top: 52%; left: 28%;" onclick="showLocation(13)">
+                <div class="pin-inner">🎓</div><div class="pin-label">玉村中</div>
+            </div>
+            <div class="pin type-school" style="top: 78%; left: 52%;" onclick="showLocation(14)">
+                <div class="pin-inner">🎓</div><div class="pin-label">南中</div>
+            </div>
+        </div>
 
-    <div id="start-overlay" class="overlay">
-        <h2>たまむらふぃーるど<br><span style="font-size:18px; color:white;">LV.1 カメラ連携デモ</span></h2>
-        <p>【ミッション】<br>30秒以内に正面のたまご竜を撃破せよ！<br><br>下ので黄色く光る「選択ボタン」をタップしてロックオンし、赤の「攻撃ボタンD」でシュート！</p>
-        <button class="start-btn" onclick="startGame()">カメラを許可して開始</button>
-    </div>
+        <div class="footer-status">
+            現在の合計獲得ポイント: <span id="total-pt-display" style="color:var(--accent); font-weight:bold;">0</span> PT
+        </div>
 
-    <div id="result-overlay" class="overlay" style="display: none;">
-        <h2 id="result-title">クリア！</h2>
-        <p id="result-text">おめでとうございます！</p>
-        <button class="start-btn" onclick="location.reload()">もう一度挑戦する</button>
-    </div>
-
-    <div class="hud">
-        <div class="status-card">タイム: <span id="timer">30</span> 秒</div>
-        <div class="status-card" id="info-text">玉村町 児童館ARエリア</div>
-        <div class="status-card">獲得: <span id="score">0</span> PT</div>
-    </div>
-
-    <div id="enemy-area">
-        <div id="enemy">🦖</div>
-        <div class="hp-container">
-            <div id="hp-bar"></div>
+        <!-- 拠点タップ時のダイアログポップアップ -->
+        <div id="popup" class="popup-overlay" onclick="closePopup(event)">
+            <div class="popup-content" onclick="event.stopPropagation()">
+                <div id="pop-title" class="popup-title">施設名</div>
+                <div id="pop-monster" class="popup-monster">🦖</div>
+                <div id="pop-karuta" class="popup-karuta">歌留多の札</div>
+                <button class="popup-btn" onclick="launchGame()">ARバトル（Lv.1）を開始</button>
+            </div>
         </div>
     </div>
 
-    <div id="guide-msg">光るボタンをタッチ！</div>
+    <!-- ================= 2. ARゲーム画面 ================= -->
+    <div id="game-screen" class="screen">
+        <video id="video-feed" autoplay playsinline muted></video>
+        <div id="flash"></div>
 
-    <div class="control-panel">
-        <div class="button-grid">
-            <button id="btn-a" class="btn" onclick="selectButton('A')">A</button>
-            <button id="btn-b" class="btn" onclick="selectButton('B')">B</button>
-            <button id="btn-c" class="btn" onclick="selectButton('C')">C</button>
+        <div class="hud-container">
+            <div class="hud-card">残り時間: <span id="game-timer">30</span>秒</div>
+            <div class="hud-card" id="game-loc-name">拠点名</div>
+            <div class="hud-card">獲得: <span id="game-score">0</span>PT</div>
         </div>
-        <button id="btn-d" onclick="pressAttack()">攻撃ボタンD</button>
+
+        <div class="arena">
+            <div id="active-monster">🦖</div>
+            <div class="hp-frame">
+                <div id="hp-bar"></div>
+            </div>
+        </div>
+
+        <div id="instruction">光るボタンを選択してください</div>
+
+        <div class="control-board">
+            <div class="grid-3">
+                <button id="btn-a" class="abc-btn" onclick="tapAbc('A')">A</button>
+                <button id="btn-b" class="abc-btn" onclick="tapAbc('B')">B</button>
+                <button id="btn-c" class="abc-btn" onclick="tapAbc('C')">C</button>
+            </div>
+            <button id="shoot-btn" onclick="triggerAttack()">攻撃ボタンD</button>
+        </div>
+
+        <!-- バトル終了リザルト画面 -->
+        <div id="result-board" class="result-screen">
+            <div id="res-title" class="result-title">撃破完了！</div>
+            <div id="res-body" class="result-body">おめでとうございます！</div>
+            <button class="popup-btn" onclick="returnToMap()">マップに戻る</button>
+        </div>
     </div>
-</div>
 
-<script>
-    let currentHp = 100;
-    const maxHp = 100;
-    let timeLimit = 30;
-    let scorePoints = 0;
-    let gameInterval, bgmInterval;
-    let isPlaying = false;
-    let targetButton = '', selectedButton = '';
-    let audioCtx = null;
+    <!-- ================= スクリプト処理 ================= -->
+    <script>
+        // 15の拠点データ（施設、キャラクター、たまむら歌留多の紐付け）
+        const locations = [
+            { name: "ケアコム群馬工場", monster: "🐉", karuta: "【た】玉村は 鶴の扇の 要役", mName: "カナメ・ドラゴン", desc: "街の要となる工業・見守りの守護龍。鋼鉄の鱗を持つ。" },
+            { name: "健康の森児童館", monster: "🌳", karuta: "【け】健康の森 映える緑の 運動公園", mName: "モリ・レックス", desc: "緑豊かな自然の精霊。元気に走る子供たちのエネルギーが好物。" },
+            { name: "西児童館", monster: "🌹", karuta: "【は】華やかに 気品あふれる バラの花", mName: "ローズ・フェアリー", desc: "芝根地区に咲く美しきバラの妖精。鋭いトゲのバリアを張る。" },
+            { name: "上陽児童館", monster: "🛡️", karuta: "【く】勲章の つたわる誉れ 軍配山", mName: "グンバイ・ナイト", desc: "軍配山古墳から目覚めたいにしえの戦士。強固な盾で仲間を守る。" },
+            { name: "中央児童館", monster: "🎆", karuta: "【お】大きな輪 夜空をこがす 花火大会", mName: "ハナビ・スパーク", desc: "玉村の夏の夜空を彩る花火の精霊。情熱的な火花を散らす。" },
+            { name: "南児童館", monster: "🦆", karuta: "【ぬ】ぬくもりを 残して今に 家鴨塚", mName: "アヒル・ファントム", desc: "歴史ある家鴨塚に住まう巨大なアヒル。癒やしの波動を放つ。" },
+            { name: "町立図書館", monster: "🦉", karuta: "【せ】世界一 和算の奇才 小野栄重", mName: "ワサン・ミミズク", desc: "和算の知恵を現代に伝える老賢者。計算高い動きで攻撃をかわす。" },
+            { name: "公民館（居場所）", monster: "🦊", karuta: "【な】なつかしき 宿場の面影 玉村宿", mName: "宿場ギツネ", desc: "玉村宿の歴史を見つめてきた化け狐。多世代の憩いの場が大好き。" },
+            { name: "玉村小学校", monster: "🌊", karuta: "【り】利根川の 恵みゆたかに 水清く", mName: "タマムラ・リュウ", desc: "清らかな利根川の流れを司る水龍。玉村小のシンボル的な存在。" },
+            { name: "上陽小学校", monster: "🌾", karuta: "【に】にぎわえる 絹市場跡の 賑わしさ", mName: "シルク・ワーム", desc: "かつて栄えた絹市場の記憶を持つ黄金の繭。豊かな大地の恵みを持つ。" },
+            { name: "芝根小学校", monster: "🦅", karuta: "【ま】松並木 歴史をかたる 例幣使", mName: "レイヘイ・ホーク", desc: "日光例幣使街道の松並木を飛び回る俊足のタカ。風を操る。" },
+            { name: "中央小学校", monster: "🌸", karuta: "【う】美しい 自然を守る 文化村", mName: "サクラ・プランツ", desc: "豊かな自然と文化を愛する花の精。周囲を華やかに調和させる。" },
+            { name: "南小学校", monster: "🐎", karuta: "【よ】よく走る 駿馬そろえて 馬市場", mName: "シュンマ・ダッシュ", desc: "かつての賑やかな馬市場を駆けた俊馬の魂。目にも留まらぬ速さで動く。" },
+            { name: "玉村中学校", monster: "⛩️", karuta: "【み】みごとな木 立ち並びたる 八幡宮", mName: "ハチマン・ギガ", desc: "玉村八幡宮の広大な鎮守の森に棲む巨木の大霊。どっしりと構える。" },
+            { name: "南中学校", monster: "🍦", karuta: "【わ】我が町の 特産誇る 道の駅", mName: "ミチノエキ・コング", desc: "道の駅玉村宿のグルメとパワーが集まった大猿。お腹が空くと暴れる。" }
+        ];
 
-    // カメラ起動処理（背面カメラをリクエスト。無ければ通常カメラ）
-    async function startCamera() {
-        const constraints = {
-            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
+        let selectedLocationIndex = 0;
+        let serialNumber = "";
+        let totalPoints = 0;
+
+        // ゲーム状態変数
+        let currentHp = 100;
+        let gameScore = 0;
+        let timerVal = 30;
+        let gameInterval, bgmInterval;
+        let targetBtn = '', userSelectedBtn = '';
+        let videoStream = null;
+        let audioCtx = null;
+
+        // ページ読み込み時の初期化（シリアル自動生成またはローカルストレージ認識）
+        window.onload = function() {
+            // URLパラメータチェック（方法①のデモ）
+            const urlParams = new URLSearchParams(window.location.search);
+            let idParam = urlParams.get('id');
+            
+            if (idParam) {
+                serialNumber = idParam;
+                localStorage.setItem('tamamura_serial_demo', serialNumber);
+            } else {
+                // ローカルストレージチェック（方法②のデモ）
+                serialNumber = localStorage.getItem('tamamura_serial_demo');
+                if (!serialNumber) {
+                    // 初回のみランダムな4桁番号を発行
+                    serialNumber = String(Math.floor(1000 + Math.random() * 9000));
+                    localStorage.setItem('tamamura_serial_demo', serialNumber);
+                }
+            }
+            
+            // 獲得ポイントも記憶から復元
+            totalPoints = parseInt(localStorage.getItem('tamamura_points_demo') || '0');
+
+            document.getElementById('serial-display').innerText = `個人シリアル番号: 【 ${serialNumber} 】`;
+            document.getElementById('total-pt-display').innerText = totalPoints;
         };
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            document.getElementById('video').srcObject = stream;
-        } catch (err) {
-            console.error("Camera error:", err);
-            document.getElementById('info-text').innerText = "擬似ARモード(カメラ無し)";
+
+        // 拠点選択ポップアップ
+        function showLocation(index) {
+            selectedLocationIndex = index;
+            const loc = locations[index];
+            document.getElementById('pop-title').innerText = loc.name;
+            document.getElementById('pop-monster').innerText = loc.monster;
+            document.getElementById('pop-karuta').innerHTML = `<strong>${loc.karuta}</strong><br><span style="font-size:11px; color:#a4b3c6;">【固有種】${loc.mName}<br>${loc.desc}</span>`;
+            document.getElementById('popup').style.style.display = 'flex';
         }
-    }
 
-    function startGame() {
-        document.getElementById('start-overlay').style.display = 'none';
-        isPlaying = true;
-        
-        // カメラと音声の開始
-        startCamera();
-        initAudio();
-        startBpmMusic();
-        nextTurn();
-        
-        gameInterval = setInterval(() => {
-            timeLimit--;
-            document.getElementById('timer').innerText = timeLimit;
-            if (timeLimit <= 0) endGame(false, "タイムアップ！");
-        }, 1000);
-    }
-
-    function nextTurn() {
-        if (!isPlaying) return;
-        ['A', 'B', 'C'].forEach(ch => document.getElementById(`btn-${ch.toLowerCase()}`).classList.remove('highlight', 'selected'));
-        selectedButton = '';
-        document.getElementById('btn-d').classList.remove('ready');
-
-        const buttons = ['A', 'B', 'C'];
-        targetButton = buttons[Math.floor(Math.random() * buttons.length)];
-        document.getElementById(`btn-${targetButton.toLowerCase()}`).classList.add('highlight');
-        document.getElementById('guide-msg').innerText = `【 ${targetButton} 】ボタンをロックオンせよ！`;
-    }
-
-    function selectButton(type) {
-        if (!isPlaying) return;
-        ['A', 'B', 'C'].forEach(ch => document.getElementById(`btn-${ch.toLowerCase()}`).classList.remove('selected'));
-        selectedButton = type;
-        document.getElementById(`btn-${type.toLowerCase()}`).classList.add('selected');
-        
-        if (selectedButton === targetButton) {
-            document.getElementById('btn-d').classList.add('ready');
-            playTone(440, 'triangle', 0.1, 0.2);
-            document.getElementById('guide-msg').innerText = "ロックオン完了！ 攻撃ボタンDを発射！";
-        } else {
-            document.getElementById('btn-d').classList.remove('ready');
-            playTone(220, 'sawtooth', 0.1, 0.1);
-            document.getElementById('guide-msg').innerText = `ロック対象が違います！【 ${targetButton} 】を選択して！`;
+        function closePopup(e) {
+            document.getElementById('popup').style.style.display = 'none';
         }
-    }
 
-    function pressAttack() {
-        if (!isPlaying) return;
+        // ゲーム画面の立ち上げとARカメラ起動
+        async function launchGame() {
+            document.getElementById('popup').style.style.display = 'none';
+            document.getElementById('map-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            
+            const loc = locations[selectedLocationIndex];
+            document.getElementById('game-loc-name').innerText = loc.name;
+            document.getElementById('active-monster').innerText = loc.monster;
+            
+            // パラメータ初期化
+            currentHp = 100;
+            gameScore = 0;
+            timerVal = 30;
+            document.getElementById('hp-bar').style.width = '100%';
+            document.getElementById('game-score').innerText = '0';
+            document.getElementById('game-timer').innerText = '30';
+            document.getElementById('result-board').style.style.display = 'none';
 
-        if (selectedButton === targetButton) {
-            currentHp -= 10;
-            scorePoints += 10;
+            // 背面WebAR風カメラの起動
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" },
+                    audio: false
+                });
+                document.getElementById('video-feed').srcObject = videoStream;
+            } catch (err) {
+                console.log("カメラが起動できないため、背景を擬似宇宙モードにします");
+            }
+
+            // 音声システム・BGM始動
+            initAudio();
+            startBgm();
+            
+            // 最初のターン開始
+            nextGameTurn();
+
+            // カウントダウン開始
+            gameInterval = setInterval(() => {
+                timerVal--;
+                document.getElementById('game-timer').innerText = timerVal;
+                if (timerVal <= 0) finishGame(false, "タイムアップ！モンスターが逃げてしまった！");
+            }, 1000);
+        }
+
+        // 次のボタンターゲット指定
+        function nextGameTurn() {
+            ['A', 'B', 'C'].forEach(l => document.getElementById(`btn-${l.toLowerCase()}`).classList.remove('highlight', 'selected'));
+            userSelectedBtn = '';
+            document.getElementById('shoot-btn').classList.remove('ready');
+
+            const choices = ['A', 'B', 'C'];
+            targetBtn = choices[Math.floor(Math.random() * choices.length)];
+            document.getElementById(`btn-${targetBtn.toLowerCase()}`).classList.add('highlight');
+            document.getElementById('instruction').innerText = `【 ${targetBtn} 】をタップしてロックオンせよ！`;
+        }
+
+        // ABCボタンタップ
+        function tapAbc(letter) {
+            ['A', 'B', 'C'].forEach(l => document.getElementById(`btn-${l.toLowerCase()}`).classList.remove('selected'));
+            userSelectedBtn = letter;
+            document.getElementById(`btn-${letter.toLowerCase()}`).classList.add('selected');
+
+            if (userSelectedBtn === targetBtn) {
+                document.getElementById('shoot-btn').classList.add('ready');
+                document.getElementById('instruction').innerText = "ターゲット補足！ 攻撃ボタンDを押せ！";
+                playTone(440, 'triangle', 0.1, 0.2); // ロックオン音
+            } else {
+                document.getElementById('shoot-btn').classList.remove('ready');
+                document.getElementById('instruction').innerText = `違う！【 ${targetBtn} 】を狙うのじゃ！`;
+                playTone(220, 'sawtooth', 0.1, 0.1); // 警告音
+            }
+        }
+
+        // 攻撃ボタンDの実行
+        function triggerAttack() {
+            if (userSelectedBtn !== targetBtn) {
+                document.getElementById('instruction').innerText = `エラー！先に【 ${targetBtn} 】をロックオンしてください`;
+                playTone(150, 'sawtooth', 0.2, 0.2);
+                return;
+            }
+
+            // ダメージ計算とエフェクト
+            currentHp -= 20;
+            gameScore += 10;
             if (currentHp < 0) currentHp = 0;
 
-            document.getElementById('score').innerText = scorePoints;
-            document.getElementById('hp-bar').style.width = `${(currentHp / maxHp) * 100}%`;
+            document.getElementById('game-score').innerText = gameScore;
+            document.getElementById('hp-bar').style.width = `${currentHp}%`;
 
-            triggerEffects();
-            playAttackSound();
+            // ビジュアルエフェクト
+            triggerHitEffects();
 
             if (currentHp <= 0) {
-                endGame(true, "レベル1 ミッションクリア！");
+                finishGame(true, `レベル1撃破完了！「たまむら歌留多」の知識を深め、街を元気にしました！`);
             } else {
-                nextTurn();
+                nextGameTurn();
             }
-        } else {
-            playTone(150, 'sawtooth', 0.2, 0.3);
-            document.getElementById('guide-msg').innerText = `エラー！先に【 ${targetButton} 】を狙ってください`;
         }
-    }
 
-    function triggerEffects() {
-        const flash = document.getElementById('flash');
-        flash.style.opacity = '0.5';
-        setTimeout(() => flash.style.opacity = '0', 60);
+        function triggerHitEffects() {
+            // 画面フラッシュ
+            const f = document.getElementById('flash');
+            f.style.opacity = '0.6';
+            setTimeout(() => f.style.opacity = '0', 60);
 
-        const enemy = document.getElementById('enemy');
-        enemy.classList.add('shake');
-        setTimeout(() => enemy.classList.remove('shake'), 150);
+            // モンスターの揺れ
+            const m = document.getElementById('active-monster');
+            m.classList.add('shake');
+            setTimeout(() => m.classList.remove('shake'), 150);
 
-        const spark = document.createElement('div');
-        spark.className = 'spark';
-        spark.innerText = '💥';
-        const rect = enemy.getBoundingClientRect();
-        spark.style.left = (rect.left + rect.width / 2 - 20) + 'px';
-        spark.style.top = (rect.top + rect.height / 2 - 20) + 'px';
-        document.getElementById('game-container').appendChild(spark);
-        setTimeout(() => spark.remove(), 400);
-    }
+            // 火花エフェクト
+            const spark = document.createElement('div');
+            spark.className = 'sparkle';
+            spark.innerText = '💥';
+            const rect = m.getBoundingClientRect();
+            spark.style.left = (rect.left + rect.width / 2 - 20) + 'px';
+            spark.style.top = (rect.top + rect.height / 2 - 20) + 'px';
+            document.body.appendChild(spark);
+            setTimeout(() => spark.remove(), 400);
 
-    function endGame(isWin, message) {
-        isPlaying = false;
-        clearInterval(gameInterval);
-        clearInterval(bgmInterval);
-        
-        // カメラストリーム停止
-        const stream = document.getElementById('video').srcObject;
-        if (stream) stream.getTracks().forEach(track => track.stop());
+            // 攻撃効果音
+            playTone(180, 'sawtooth', 0.1, 0.3);
+            playTone(90, 'square', 0.15, 0.4);
+        }
 
-        document.getElementById('result-overlay').style.display = 'flex';
-        document.getElementById('result-title').innerText = isWin ? "CLEAR!" : "GAME OVER";
-        document.getElementById('result-text').innerText = message;
+        // ゲーム決着
+        function finishGame(isSuccess, message) {
+            clearInterval(gameInterval);
+            clearInterval(bgmInterval);
+            
+            if (videoStream) {
+                videoStream.getTracks().forEach(t => t.stop());
+            }
 
-        if (isWin) playFanfare();
-        else playTone(100, 'sawtooth', 0.8, 0.5);
-    }
+            document.getElementById('result-board').style.style.display = 'flex';
+            document.getElementById('res-title').innerText = isSuccess ? "MISSION CLEAR!" : "GAME OVER";
+            document.getElementById('res-body').innerHTML = `${message}<br><br><span style="color:var(--accent); font-size:20px; font-weight:bold;">＋ ${gameScore} PT 獲得！</span>`;
 
-    /* --- オーディオシンセサイズ --- */
-    function initAudio() { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    function playTone(freq, type, duration, volume) {
-        if (!audioCtx) return;
-        let osc = audioCtx.createOscillator(), gainNode = audioCtx.createGain();
-        osc.type = type; osc.frequency.value = freq;
-        gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        osc.connect(gainNode); gainNode.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + duration);
-    }
+            if (isSuccess) {
+                totalPoints += gameScore;
+                localStorage.setItem('tamamura_points_demo', totalPoints);
+                document.getElementById('total-pt-display').innerText = totalPoints;
+                playFanfare();
+            } else {
+                playTone(120, 'sawtooth', 0.6, 0.4);
+            }
+        }
 
-    function startBpmMusic() {
-        const notes = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 440.00, 349.23];
-        let index = 0;
-        bgmInterval = setInterval(() => {
-            if (!isPlaying) return;
-            playTone(notes[index], 'square', 0.15, 0.03); // 主旋律
-            if (index % 2 === 0) playTone(notes[(index+2)%notes.length]/2, 'triangle', 0.2, 0.06); // ベース
-            index = (index + 1) % notes.length;
-        }, 200);
-    }
+        function returnToMap() {
+            document.getElementById('game-screen').classList.remove('active');
+            document.getElementById('map-screen').classList.add('active');
+        }
 
-    function playAttackSound() { playTone(160, 'sawtooth', 0.15, 0.2); playTone(80, 'square', 0.2, 0.3); }
-    function playFanfare() {
-        const f = [523.25, 587.33, 659.25, 783.99];
-        f.forEach((note, i) => setTimeout(() => playTone(note, 'square', i===3?0.5:0.15, 0.1), i*150));
-    }
-</script>
-
+        /* --- シンセサイザー音声ロジック --- */
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        function playTone(freq, type, duration, vol) {
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+        function startBgm() {
+            const melody = [261.63, 293.66, 329.63, 392.00, 349.23, 329.63, 293.66, 261.63];
+            let idx = 0;
+            bgmInterval = setInterval(() => {
+                playTone(melody[idx], 'square', 0.12, 0.02);
+                idx = (idx + 1) % melody.length;
+            }, 250);
+        }
+        function playFanfare() {
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((n, i) => setTimeout(() => playTone(n, 'square', i===3?0.6:0.15, 0.1), i*120));
+        }
+    </script>
 </body>
 </html>
