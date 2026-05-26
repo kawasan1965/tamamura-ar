@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>たまむらふぃーるど - レベル1バトル</title>
+    <style>
+        :root {
+            --primary: #005088;
+            --accent: #facc15;
+            --danger: #ef4444;
+            --dark: #0f172a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: black; color: white; overflow: hidden; }
+        
+        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 2; pointer-events: none; }
+        
+        .hud { width: 100%; display: flex; justify-content: space-between; padding: 15px; z-index: 10; position: relative; }
+        .hud-card { background: rgba(15, 23, 42, 0.85); padding: 8px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); }
+        
+        .arena { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; position: relative; height: 50vh; }
+        #active-monster { font-size: 120px; filter: drop-shadow(0 8px 15px rgba(0,0,0,0.6)); transition: transform 0.1s; }
+        .hp-frame { width: 160px; height: 12px; background: rgba(255,255,255,0.3); border-radius: 6px; margin-top: 20px; overflow: hidden; border: 1px solid black; }
+        #hp-bar { width: 100%; height: 100%; background: var(--danger); transition: width 0.1s; }
+        
+        #instruction { background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; margin: 10px auto; z-index: 10; text-align: center; width: 80%; border: 1px solid rgba(255,255,255,0.2); position: relative; }
+        
+        .controls { width: 100%; background: rgba(15, 23, 42, 0.95); padding: 20px 15px 40px 15px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; position: fixed; bottom: 0; left: 0; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .abc-btn { background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 18px 0; font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer; }
+        .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; }
+        .abc-btn.selected { background: #2563eb !important; color: white !important; }
+        
+        #shoot-btn { width: 100%; background: #475569; color: #94a3b8; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; cursor: pointer; }
+        #shoot-btn.ready { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 12px rgba(5,150,105,0.4); }
+
+        .shake { animation: s 0.15s linear; }
+        @keyframes s { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-8px,4px); } 75% { transform: translate(8px,-4px); } }
+
+        .result { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; padding: 30px; text-align: center; }
+        .res-title { font-size: 32px; color: var(--accent); margin-bottom: 20px; font-weight: bold; }
+        .res-body { font-size: 16px; margin-bottom: 30px; line-height: 1.6; }
+        .back-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 80%; max-width: 280px; }
+    </style>
+</head>
+<body>
+
+    <video id="video" autoplay playsinline muted></video>
+    <div id="flash"></div>
+
+    <div class="hud">
+        <div class="hud-card">タイム: <span id="timer">30</span></div>
+        <div class="hud-card" id="loc-name">バトル</div>
+        <div class="hud-card">スコア: <span id="score">0</span></div>
+    </div>
+
+    <div class="arena">
+        <div id="active-monster">🦖</div>
+        <div class="hp-frame"><div id="hp-bar"></div></div>
+    </div>
+
+    <div id="instruction">指示を待て...</div>
+
+    <div class="controls">
+        <div class="grid-3">
+            <button id="btn-a" class="abc-btn" onclick="tapAbc('A')">A</button>
+            <button id="btn-b" class="abc-btn" onclick="tapAbc('B')">B</button>
+            <button id="btn-c" class="abc-btn" onclick="tapAbc('C')">C</button>
+        </div>
+        <button id="shoot-btn" onclick="attack()">攻撃ボタンD</button>
+    </div>
+
+    <div id="resBoard" class="result">
+        <div class="res-title" id="resTitle">CLEAR</div>
+        <div class="res-body" id="resBody">結果</div>
+        <button class="back-btn" onclick="back()">マップに戻る</button>
+    </div>
+
+    <script>
+        let hp = 100, score = 0, time = 30;
+        let target = '', selected = '';
+        let timerInterval, audioCtx;
+
+        window.onload = function() {
+            document.getElementById('loc-name').innerText = sessionStorage.getItem('current_battle_name') || '玉村町';
+            document.getElementById('active-monster').innerText = sessionStorage.getItem('current_battle_monster') || '🦖';
+            
+            // ARカメラ起動
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+                .then(stream => { document.getElementById('video').srcObject = stream; })
+                .catch(() => { console.log("疑似AR空間で起動しました"); });
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            nextTurn();
+
+            timerInterval = setInterval(() => {
+                time--;
+                document.getElementById('timer').innerText = time;
+                if(time <= 0) end(false, "タイムアップ！");
+            }, 1000);
+        };
+
+        function nextTurn() {
+            ['a','b','c'].forEach(l => document.getElementById(`btn-${l}`).classList.remove('highlight','selected'));
+            selected = '';
+            document.getElementById('shoot-btn').classList.remove('ready');
+            target = ['A','B','C'][Math.floor(Math.random()*3)];
+            document.getElementById(`btn-${target.toLowerCase()}`).classList.add('highlight');
+            document.getElementById('instruction').innerText = `【 ${target} 】を押してロックオン！`;
+        }
+
+        function tapAbc(l) {
+            ['a','b','c'].forEach(i => document.getElementById(`btn-${i}`).classList.remove('selected'));
+            selected = l;
+            document.getElementById(`btn-${l.toLowerCase()}`).classList.add('selected');
+            if(selected === target) {
+                document.getElementById('shoot-btn').classList.add('ready');
+                document.getElementById('instruction').innerText = "ロックオン完了！Dボタンで攻撃！";
+                tone(440, 0.1);
+            } else {
+                document.getElementById('shoot-btn').classList.remove('ready');
+                tone(150, 0.1);
+            }
+        }
+
+        function attack() {
+            if(selected !== target) return;
+            hp -= 20;
+            score += 10;
+            document.getElementById('score').innerText = score;
+            document.getElementById('hp-bar').style.width = `${hp}%`;
+            
+            // フラッシュ＆揺れ
+            document.getElementById('flash').style.opacity = '0.5';
+            setTimeout(() => document.getElementById('flash').style.opacity = '0', 50);
+            document.getElementById('active-monster').classList.add('shake');
+            setTimeout(() => document.getElementById('active-monster').classList.remove('shake'), 150);
+            tone(100, 0.2);
+
+            if(hp <= 0) {
+                end(true, "モンスターの撃破に成功した！");
+            } else {
+                nextTurn();
+            }
+        }
+
+        function end(success, msg) {
+            clearInterval(timerInterval);
+            document.getElementById('resBoard').style.display = 'flex';
+            document.getElementById('resTitle').innerText = success ? "MISSION CLEAR" : "GAME OVER";
+            document.getElementById('resBody').innerHTML = `${msg}<br><br><span style="color:#facc15;font-size:24px;">+ ${score} PT</span>`;
+            if(success) {
+                let total = parseInt(localStorage.getItem('tamamura_points_demo') || '0');
+                localStorage.setItem('tamamura_points_demo', total + score);
+            }
+        }
+
+        function back() { window.location.href = 'index.html'; }
+        function tone(f, d) {
+            if(!audioCtx) return;
+            let o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.frequency.value = f; g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+            o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d);
+        }
+    </script>
+</body>
+</html>
