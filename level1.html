@@ -37,7 +37,10 @@
         .abc-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 18px 0; font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer; box-shadow: 0 4px #1e293b, 0 4px 10px rgba(0,0,0,0.3); transition: all 0.1s; }
         .abc-btn:active { transform: translateY(2px); box-shadow: 0 2px #1e293b; }
         
+        /* 選択状態（青） */
         .abc-btn.selected { background: #2563eb !important; color: white !important; box-shadow: 0 4px #1d4ed8, 0 4px 10px rgba(37,99,235,0.3) !important; }
+        
+        /* 【重要】光るアニメーション（黄色）が確実に見えるようにスタイルを固定 */
         .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; box-shadow: 0 4px #ca8a04, 0 0 15px var(--accent) !important; animation: pulse 0.8s infinite alternate !important; }
         @keyframes pulse { 0% { transform: scale(0.98); opacity: 0.9; } 100% { transform: scale(1.04); opacity: 1; } }
         
@@ -95,11 +98,9 @@
         let hp = 100, score = 0, time = 30;
         let target = '', selected = '';
         let timerInterval, bgmInterval, audioCtx;
-        
-        // 【重要バグ修正】メッセージをタイマーに邪魔されず固定するためのフラグ
-        let isMessageLocked = false; 
 
         window.onload = function() {
+            // 安全対策：データの読み込みで万が一エラーが起きてもゲームを止めない仕組み（Try-Catch）
             try {
                 let savedName = sessionStorage.getItem('current_battle_name');
                 let savedMonster = sessionStorage.getItem('current_battle_monster');
@@ -107,22 +108,26 @@
                 if (savedName) document.getElementById('loc-name').innerText = savedName;
                 if (savedMonster) document.getElementById('active-monster').innerText = savedMonster;
             } catch (e) {
-                console.log("データ復元スキップ");
+                console.log("データの復元にスキップ処理を適用しました");
             }
             
+            // WebAR背面カメラ起動
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
                     .then(stream => { document.getElementById('video').srcObject = stream; })
-                    .catch(() => { console.log("疑似ARモード起動"); });
+                    .catch(() => { console.log("疑似ARモードで起動"); });
             }
 
+            // オーディオの初期化
             initAudio();
             
+            // 【最重要】強制的にゲームを開始させる
             setTimeout(() => {
                 startBpmMusic();
                 nextTurn();
             }, 300);
 
+            // カウントダウンタイマー
             timerInterval = setInterval(() => {
                 time--;
                 document.getElementById('timer').innerText = time;
@@ -130,12 +135,12 @@
             }, 1000);
         };
 
+        // 次のターゲット（正解ボタン）をランダム指定する処理
         function nextTurn() {
-            isMessageLocked = false; // 新しいターンになったらメッセージロックを解除
-            
+            // いったんリセット
             ['A','B','C'].forEach(l => {
                 const el = document.getElementById(`btn-${l.toLowerCase()}`);
-                if(el) el.className = 'abc-btn'; 
+                if(el) el.className = 'abc-btn'; // クラスを初期化して干渉を防ぐ
             });
             selected = '';
             
@@ -146,17 +151,19 @@
                 dBtn.style.color = '#94a3b8';
             }
             
+            // ランダムでA, B, Cのどれかをターゲットにする
             const choices = ['A','B','C'];
             target = choices[Math.floor(Math.random() * 3)];
             
             const targetEl = document.getElementById(`btn-${target.toLowerCase()}`);
             if(targetEl) {
-                targetEl.classList.add('highlight'); 
+                targetEl.classList.add('highlight'); // 黄色く点滅させる
             }
             
             document.getElementById('instruction').innerText = `選択ボタン【 ${target} 】を押そう！`;
         }
 
+        // 選択ボタンA,B,Cをタップしたとき
         function tapAbc(l) {
             ['a','b','c'].forEach(i => {
                 const el = document.getElementById(`btn-${i}`);
@@ -168,14 +175,13 @@
             if(myBtn) myBtn.classList.add('selected');
             
             if(selected === target) {
-                isMessageLocked = false; // 正解した場合はガイド表示を通常に戻す
                 const dBtn = document.getElementById('shoot-btn');
-                if(dBtn) dBtn.classList.add('ready'); 
+                if(dBtn) {
+                    dBtn.classList.add('ready'); // Dボタンをオレンジ色にする
+                }
                 document.getElementById('instruction').innerText = "準備完了！ 攻撃ボタンDを狙え！";
                 playTone(440, 'triangle', 0.1, 0.2); 
             } else {
-                // 【完全修正】間違えたメッセージをBGMに邪魔させないようロック
-                isMessageLocked = true; 
                 const dBtn = document.getElementById('shoot-btn');
                 if(dBtn) dBtn.classList.remove('ready');
                 document.getElementById('instruction').innerText = `ちがうよ！【 ${target} 】を押してね！`;
@@ -183,9 +189,9 @@
             }
         }
 
+        // 攻撃ボタンDを押したとき
         function attack() {
             if(selected !== target) {
-                isMessageLocked = true; // 空振りメッセージをロック
                 playTone(150, 'sawtooth', 0.2, 0.3);
                 const dBtn = document.getElementById('shoot-btn');
                 if(dBtn) dBtn.classList.remove('ready');
@@ -273,7 +279,7 @@
                 osc.type = type;
                 osc.frequency.value = freq;
                 gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, application) || 0.001;
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
                 osc.connect(gainNode); gainNode.connect(audioCtx.destination);
                 osc.start(); osc.stop(audioCtx.currentTime + duration);
             } catch(e){}
@@ -292,14 +298,8 @@
                 if (index % 4 === 2) {
                     playTone(587.33, 'sine', 0.1, 0.02); 
                 }
-                
-                // 【バグの主因を解決】ロックがかかっていない場合のみ、ガイドテキストの定期更新を行う
-                if (!isMessageLocked) {
-                    document.getElementById('instruction').innerText = selected === target ? "準備完了！ 攻撃ボタンDを狙え！" : `選択ボタン【 ${target} 】を押そう！`;
-                }
-
                 index = (index + 1) % notesTrack1.length;
-            }, 250); // 0.25秒に1回上書きされていた競合をブロック！
+            }, 250);
         }
 
         function playFanfare() {
