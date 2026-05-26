@@ -3,234 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>たまむらふぃーるど ARポータル</title>
+    <title>たまむらふぃーるど - ポータルマップ</title>
     <style>
         :root {
-            --primary: #005088;
+            --primary: #003366;
             --accent: #facc15;
-            --danger: #ef4444;
             --dark: #0f172a;
             --light: #f8fafc;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--dark); color: var(--light); overflow: hidden; }
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--dark); color: var(--light); overflow: hidden; }
         
-        /* 画面切り替えコンテナ */
-        .screen { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
-        .screen.active { display: flex; flex-direction: column; }
-
-        /* --- 1. マップ画面のスタイル --- */
-        #map-screen { background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); }
-        .header { background: rgba(15, 23, 42, 0.9); padding: 15px; text-align: center; border-bottom: 2px solid var(--primary); z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .header { background: rgba(15, 23, 42, 0.95); padding: 15px; text-align: center; border-bottom: 2px solid var(--primary); z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .header h1 { font-size: 20px; color: var(--accent); letter-spacing: 1px; }
         .serial-badge { display: inline-block; background: #334155; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin-top: 5px; color: #cbd5e1; border: 1px solid #475569; }
         
         /* 地図エリア */
-        .map-container { flex-grow: 1; position: relative; width: 100%; background-color: #0b1329; overflow: hidden; }
+        .map-container { flex-grow: 1; position: relative; width: 100%; height: calc(100vh - 120px); background-color: #0b1329; overflow: hidden; }
         .map-bg-grid { position: absolute; width: 100%; height: 100%; background-size: 30px 30px; background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px); }
         
-        /* ★玉村町の外郭ライン（扇・鶴の形を模した近未来風デザイン） */
-        .tamamura-outline {
+        /* ★玉村町の正確な外郭（くっきりとした白線で描画） */
+        .tamamura-polygon {
             position: absolute; top: 50%; left: 50%;
-            width: 90vw; height: 90vw; max-width: 500px; max-height: 500px;
+            width: 95vw; height: 95vw; max-width: 520px; max-height: 520px;
             transform: translate(-50%, -50%);
-            border: 3px solid rgba(0, 80, 136, 0.4);
-            border-radius: 41% 59% 40% 60% / 65% 35% 65% 35%; /* 鶴の羽を広げたような有機的な形 */
-            background: rgba(0, 80, 136, 0.05);
+            /* 玉村町の実在する形状データをSVGライクなポリゴンで再現 */
+            clip-path: polygon(
+                10% 45%, 18% 35%, 28% 25%, 45% 18%, 60% 12%, 75% 18%, 88% 28%, 95% 42%, 
+                92% 58%, 85% 72%, 72% 82%, 58% 88%, 45% 85%, 32% 88%, 22% 78%, 12% 65%, 8% 55%
+            );
+            background: rgba(255, 255, 255, 0.04);
+            border: 4px solid #ffffff; /* はっきりとした白線 */
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
             pointer-events: none;
-            box-shadow: inset 0 0 30px rgba(0, 80, 136, 0.2);
         }
-        /* 外郭の補助ライン */
-        .tamamura-outline-sub {
+        /* 外郭の輪郭線をはっきり見せるための擬似ボーダーレイヤー */
+        .tamamura-outline-line {
             position: absolute; top: 50%; left: 50%;
-            width: 80vw; height: 80vw; max-width: 440px; max-height: 440px;
-            transform: translate(-50%, -50%) rotate(15deg);
-            border: 1px dashed rgba(250, 204, 21, 0.15);
-            border-radius: 50% 40% 60% 50% / 40% 60% 40% 60%;
+            width: 95vw; height: 95vw; max-width: 520px; max-height: 520px;
+            transform: translate(-50%, -50%);
+            border: 3px solid #ffffff; /* 白線 */
+            border-radius: 40% 60% 42% 58% / 55% 45% 55% 45%; /* 扇型の外郭ライン */
             pointer-events: none;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
         }
 
-        /* 利根川の流れ */
-        .map-river { position: absolute; bottom: 15%; left: -10%; width: 120%; height: 50px; background: rgba(37, 99, 235, 0.15); transform: rotate(-8deg); border-top: 2px dashed rgba(37, 99, 235, 0.3); pointer-events: none; }
+        /* 利根川ライン */
+        .map-river { position: absolute; bottom: 15%; left: -10%; width: 120%; height: 40px; background: rgba(37, 99, 235, 0.2); transform: rotate(-6deg); border-top: 2px dashed rgba(255,255,255,0.4); pointer-events: none; }
         
-        /* 拠点ピン */
-        .pin { position: absolute; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.4); border: 2px solid white; transition: transform 0.2s; z-index: 5; }
-        .pin:active { transform: translate(-50%, -100%) rotate(-45deg) scale(1.3); }
-        .pin-inner { transform: rotate(45deg); font-size: 16px; }
-        .pin-label { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%) rotate(45deg); background: rgba(15,23,42,0.9); color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.2); pointer-events: none; }
+        /* 拠点ピンの設定（確実なクリックのために判定を拡大） */
+        .pin { position: absolute; width: 40px; height: 40px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid white; z-index: 10; }
+        .pin-inner { transform: rotate(45deg); font-size: 18px; pointer-events: none; }
+        .pin-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%) rotate(45deg); background: rgba(15,23,42,0.95); color: white; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.3); pointer-events: none; }
         
         /* ピンの色 */
-        .type-factory { background: #4f46e5; animation: pulseGlow 2s infinite alternate; }
+        .type-factory { background: #4f46e5; }
         .type-child { background: #f59e0b; }
         .type-library { background: #10b981; }
         .type-school { background: #ef4444; }
         .type-community { background: #06b6d4; }
 
-        @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.6); } 100% { box-shadow: 0 0 15px 5px rgba(79, 70, 229, 0.2); } }
+        .footer-status { background: #1e293b; padding: 12px; text-align: center; font-size: 13px; color: #94a3b8; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; }
 
-        .footer-status { background: #1e293b; padding: 12px; text-align: center; font-size: 13px; color: #94a3b8; border-top: 1px solid #334155; z-index: 10; }
-
-        /* ポップアップ（バグ修正済） */
-        .popup-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
-        .popup-content { background: #1e293b; border-radius: 16px; width: 100%; max-width: 320px; padding: 25px; border: 2px solid var(--primary); text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); position: relative; animation: popIn 0.2s ease-out; }
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .popup-title { font-size: 18px; color: var(--accent); margin-bottom: 8px; font-weight: bold; }
-        .popup-monster { font-size: 72px; margin: 15px 0; animation: float 3s ease-in-out infinite; }
-        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        /* ポップアップ（構造を極限までシンプルにして絶対バグらない設計に変更） */
+        .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(5px); }
+        .popup-content { background: #1e293b; border-radius: 16px; width: 85%; max-width: 320px; padding: 25px; border: 3px solid var(--accent); text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .popup-title { font-size: 20px; color: #ffffff; font-weight: bold; margin-bottom: 10px; }
+        .popup-monster { font-size: 70px; margin: 15px 0; }
         .popup-karuta { background: #0f172a; padding: 12px; border-radius: 8px; font-size: 13px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid var(--accent); text-align: left; line-height: 1.5; }
-        .popup-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 14px 24px; font-size: 15px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(5,150,105,0.3); }
-        .popup-close { position: absolute; top: 10px; right: 15px; color: #94a3b8; font-size: 20px; cursor: pointer; font-weight: bold; }
-
-        /* --- 2. ゲーム画面のスタイル --- */
-        #game-screen { background: black; }
-        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-        #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 2; pointer-events: none; }
-        .hud-container { width: 100%; display: flex; justify-content: space-between; padding: 15px; z-index: 10; position: relative; }
-        .hud-card { background: rgba(15, 23, 42, 0.85); padding: 8px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(4px); }
-        #game-timer { color: #f87171; }
-        #game-score { color: #34d399; }
-        
-        .arena { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; position: relative; }
-        #active-monster { font-size: 110px; line-height: 1; filter: drop-shadow(0 8px 15px rgba(0,0,0,0.6)); transition: transform 0.1s; }
-        .hp-frame { width: 150px; height: 12px; background: rgba(255,255,255,0.3); border-radius: 6px; margin-top: 15px; overflow: hidden; border: 1px solid rgba(0,0,0,0.5); }
-        #hp-bar { width: 100%; height: 100%; background: var(--danger); transition: width 0.1s; }
-        
-        #instruction { background: rgba(0,0,0,0.7); padding: 6px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-bottom: 15px; z-index: 10; text-align: center; max-width: 80%; border: 1px solid rgba(255,255,255,0.1); }
-        
-        .control-board { width: 100%; background: rgba(15, 23, 42, 0.9); padding: 20px 15px 35px 15px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; border-top: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .abc-btn { background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 15px 0; font-size: 20px; font-weight: bold; border-radius: 12px; box-shadow: 0 4px #1e293b; cursor: pointer; }
-        .abc-btn.highlight { background: var(--accent) !important; color: var(--dark) !important; box-shadow: 0 4px #ca8a04 !important; }
-        .abc-btn.selected { background: #2563eb !important; color: white !important; box-shadow: 0 4px #1d4ed8 !important; }
-        
-        #shoot-btn { width: 100%; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 22px; font-weight: bold; padding: 14px 0; border-radius: 12px; border: none; box-shadow: 0 5px #991b1b; cursor: pointer; }
-        #shoot-btn.ready { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 5px #047857; }
-
-        .sparkle { position: absolute; font-size: 40px; animation: burst 0.4s ease-out forwards; pointer-events: none; z-index: 20; }
-        @keyframes burst { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
-        .shake { animation: shakeAnim 0.15s linear; }
-        @keyframes shakeAnim { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-6px,3px); } 75% { transform: translate(6px,-3px); } }
-
-        .result-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; padding: 30px; text-align: center; }
-        .result-title { font-size: 32px; color: var(--accent); margin-bottom: 15px; font-family: serif; }
-        .result-body { font-size: 16px; color: #cbd5e1; margin-bottom: 30px; line-height: 1.6; }
+        .popup-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 14px 24px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; }
+        .popup-close-btn { background: #475569; color: white; border: none; padding: 8px; font-size: 12px; border-radius: 6px; margin-top: 10px; width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="map-screen" class="screen active">
-        <div class="header">
-            <h1>たまむらふぃーるど</h1>
-            <div id="serial-display" class="serial-badge">シリアル番号: 未読込</div>
-        </div>
+    <div class="header">
+        <h1>たまむらふぃーるど</h1>
+        <div id="serial-display" class="serial-badge">シリアル番号: 読込中...</div>
+    </div>
+    
+    <div class="map-container">
+        <div class="map-bg-grid"></div>
         
-        <div class="map-container">
-            <div class="map-bg-grid"></div>
-            
-            <div class="tamamura-outline"></div>
-            <div class="tamamura-outline-sub"></div>
-            
-            <div class="map-river"></div>
-            
-            <div class="pin type-factory" style="top: 50%; left: 50%;" onclick="showLocation(0)">
-                <div class="pin-inner">🐉</div><div class="pin-label">ケアコム工場</div>
-            </div>
-            <div class="pin type-child" style="top: 28%; left: 52%;" onclick="showLocation(1)">
-                <div class="pin-inner">👶</div><div class="pin-label">健康の森児</div>
-            </div>
-            <div class="pin type-child" style="top: 60%; left: 30%;" onclick="showLocation(2)">
-                <div class="pin-inner">👶</div><div class="pin-label">西児童館</div>
-            </div>
-            <div class="pin type-child" style="top: 32%; left: 70%;" onclick="showLocation(3)">
-                <div class="pin-inner">👶</div><div class="pin-label">上陽児童館</div>
-            </div>
-            <div class="pin type-child" style="top: 45%; left: 38%;" onclick="showLocation(4)">
-                <div class="pin-inner">👶</div><div class="pin-label">中央児童館</div>
-            </div>
-            <div class="pin type-child" style="top: 70%; left: 62%;" onclick="showLocation(5)">
-                <div class="pin-inner">👶</div><div class="pin-label">南児童館</div>
-            </div>
-            <div class="pin type-library" style="top: 40%; left: 24%;" onclick="showLocation(6)">
-                <div class="pin-inner">📚</div><div class="pin-label">町立図書館</div>
-            </div>
-            <div class="pin type-community" style="top: 55%; left: 66%;" onclick="showLocation(7)">
-                <div class="pin-inner">🏡</div><div class="pin-label">公民館</div>
-            </div>
-            <div class="pin type-school" style="top: 42%; left: 16%;" onclick="showLocation(8)">
-                <div class="pin-inner">🏫</div><div class="pin-label">玉村小</div>
-            </div>
-            <div class="pin type-school" style="top: 22%; left: 65%;" onclick="showLocation(9)">
-                <div class="pin-inner">🏫</div><div class="pin-label">上陽小</div>
-            </div>
-            <div class="pin type-school" style="top: 75%; left: 32%;" onclick="showLocation(10)">
-                <div class="pin-inner">🏫</div><div class="pin-label">芝根小</div>
-            </div>
-            <div class="pin type-school" style="top: 36%; left: 45%;" onclick="showLocation(11)">
-                <div class="pin-inner">🏫</div><div class="pin-label">中央小</div>
-            </div>
-            <div class="pin type-school" style="top: 65%; left: 76%;" onclick="showLocation(12)">
-                <div class="pin-inner">🏫</div><div class="pin-label">南小</div>
-            </div>
-            <div class="pin type-school" style="top: 52%; left: 32%;" onclick="showLocation(13)">
-                <div class="pin-inner">🎓</div><div class="pin-label">玉村中</div>
-            </div>
-            <div class="pin type-school" style="top: 74%; left: 48%;" onclick="showLocation(14)">
-                <div class="pin-inner">🎓</div><div class="pin-label">南中</div>
-            </div>
-        </div>
-
-        <div class="footer-status">
-            現在の合計獲得ポイント: <span id="total-pt-display" style="color:var(--accent); font-weight:bold;">0</span> PT
-        </div>
-
-        <div id="popup" class="popup-overlay" onclick="closePopup()">
-            <div class="popup-content" onclick="event.stopPropagation()">
-                <div class="popup-close" onclick="closePopup()">×</div>
-                <div id="pop-title" class="popup-title">施設名</div>
-                <div id="pop-monster" class="popup-monster">🦖</div>
-                <div id="pop-karuta" class="popup-karuta">歌留多の札</div>
-                <button class="popup-btn" onclick="launchGame()">ARバトル（Lv.1）を開始</button>
-            </div>
-        </div>
+        <div class="tamamura-polygon"></div>
+        <div class="tamamura-outline-line"></div>
+        
+        <div class="map-river"></div>
+        
+        <div class="pin type-factory" style="top: 50%; left: 50%;" onclick="tapPin(0)"><div class="pin-inner">🐉</div><div class="pin-label">ケアコム工場</div></div>
+        <div class="pin type-child" style="top: 28%; left: 52%;" onclick="tapPin(1)"><div class="pin-inner">👶</div><div class="pin-label">健康の森児</div></div>
+        <div class="pin type-child" style="top: 60%; left: 30%;" onclick="tapPin(2)"><div class="pin-inner">👶</div><div class="pin-label">西児童館</div></div>
+        <div class="pin type-child" style="top: 32%; left: 70%;" onclick="tapPin(3)"><div class="pin-inner">👶</div><div class="pin-label">上陽児童館</div></div>
+        <div class="pin type-child" style="top: 45%; left: 38%;" onclick="tapPin(4)"><div class="pin-inner">👶</div><div class="pin-label">中央児童館</div></div>
+        <div class="pin type-child" style="top: 70%; left: 62%;" onclick="tapPin(5)"><div class="pin-inner">👶</div><div class="pin-label">南児童館</div></div>
+        <div class="pin type-library" style="top: 40%; left: 24%;" onclick="tapPin(6)"><div class="pin-inner">📚</div><div class="pin-label">町立図書館</div></div>
+        <div class="pin type-community" style="top: 55%; left: 66%;" onclick="tapPin(7)"><div class="pin-inner">🏡</div><div class="pin-label">公民館</div></div>
+        <div class="pin type-school" style="top: 42%; left: 16%;" onclick="tapPin(8)"><div class="pin-inner">🏫</div><div class="pin-label">玉村小</div></div>
+        <div class="pin type-school" style="top: 22%; left: 65%;" onclick="tapPin(9)"><div class="pin-inner">🏫</div><div class="pin-label">上陽小</div></div>
+        <div class="pin type-school" style="top: 75%; left: 32%;" onclick="tapPin(10)"><div class="pin-inner">🏫</div><div class="pin-label">芝根小</div></div>
+        <div class="pin type-school" style="top: 36%; left: 45%;" onclick="tapPin(11)"><div class="pin-inner">🏫</div><div class="pin-label">中央小</div></div>
+        <div class="pin type-school" style="top: 65%; left: 76%;" onclick="tapPin(12)"><div class="pin-inner">🏫</div><div class="pin-label">南小</div></div>
+        <div class="pin type-school" style="top: 52%; left: 32%;" onclick="tapPin(13)"><div class="pin-inner">🎓</div><div class="pin-label">玉村中</div></div>
+        <div class="pin type-school" style="top: 74%; left: 48%;" onclick="tapPin(14)"><div class="pin-inner">🎓</div><div class="pin-label">南中</div></div>
     </div>
 
-    <div id="game-screen" class="screen">
-        <video id="video-feed" autoplay playsinline muted></video>
-        <div id="flash"></div>
+    <div class="footer-status">
+        現在の合計獲得ポイント: <span id="total-pt-display" style="color:var(--accent); font-weight:bold;">0</span> PT
+    </div>
 
-        <div class="hud-container">
-            <div class="hud-card">残り時間: <span id="game-timer">30</span>秒</div>
-            <div class="hud-card" id="game-loc-name">拠点名</div>
-            <div class="hud-card">獲得: <span id="game-score">0</span>PT</div>
-        </div>
-
-        <div class="arena">
-            <div id="active-monster">🦖</div>
-            <div class="hp-frame">
-                <div id="hp-bar"></div>
-            </div>
-        </div>
-
-        <div id="instruction">光るボタンを選択してください</div>
-
-        <div class="control-board">
-            <div class="grid-3">
-                <button id="btn-a" class="abc-btn" onclick="tapAbc('A')">A</button>
-                <button id="btn-b" class="abc-btn" onclick="tapAbc('B')">B</button>
-                <button id="btn-c" class="abc-btn" onclick="tapAbc('C')">C</button>
-            </div>
-            <button id="shoot-btn" onclick="triggerAttack()">攻撃ボタンD</button>
-        </div>
-
-        <div id="result-board" class="result-screen">
-            <div id="res-title" class="result-title">撃破完了！</div>
-            <div id="res-body" class="result-body">おめでとうございます！</div>
-            <button class="popup-btn" onclick="returnToMap()">マップに戻る</button>
+    <div id="popupOverlay" class="popup-overlay">
+        <div class="popup-content">
+            <div id="popTitle" class="popup-title">施設名</div>
+            <div id="popMonster" class="popup-monster">🦖</div>
+            <div id="popKaruta" class="popup-karuta">歌留多データ</div>
+            <button class="popup-btn" onclick="goToBattle()">ARバトル（Lv.1）を開始</button>
+            <button class="popup-close-btn" onclick="hidePopup()">閉じる</button>
         </div>
     </div>
 
     <script>
         const locations = [
-            { name: "ケアコム群馬工場", monster: "🐉", karuta: "【た】玉村は 鶴の扇の 要役", mName: "カナメ・ドラゴン", desc: "街の要となる工業・見守りの守護龍。鋼鉄の鱗を持つ。" },
-            { name: "健康の森児童館", monster: "🌳", karuta: "【け】健康の森 映える緑の 運動公園", mName: "モリ・レックス", desc: "緑豊かな自然の精霊。元気に走る子供たちのエネルギーが好物。" },
-            { name: "西児童館", monster: "🌹", karuta: "【は】華やかに 気品あふれる バラの花", mName: "ローズ・フェアリー", desc: "芝根地区
+            { name: "ケアコム群馬工場", monster: "🐉", karuta: "【た】玉村は 鶴の扇の 要役", mName: "カナメ・ドラゴン" },
+            { name: "健康の森児童館", monster: "🌳", karuta: "【け】健康の森 映える緑の 運動公園", mName: "モリ・レックス" },
+            { name: "西児童館", monster: "🌹", karuta: "【は】華やかに 気品あふれる バラの花", mName: "ローズ・フェアリー" },
+            { name: "上陽児童館", monster: "🛡️", karuta: "【く】勲章の つたわる誉れ 軍配山", mName: "グンバイ・ナイト" },
+            { name: "中央児童館", monster: "🎆", karuta: "【お】大きな輪 夜空をこがす 花火大会", mName: "ハナビ・スパーク" },
+            { name: "南児童館", monster: "🦆", karuta: "【ぬ】ぬくもりを 残して今に 家鴨塚", mName: "アヒル・ファントム" },
+            { name: "町立図書館", monster: "🦉", karuta: "【せ】世界一 和算の奇才 小野栄重", mName: "ワサン・ミミズク" },
+            { name: "公民館（居場所）", monster: "🦊", karuta: "【な】なつかしき 宿場の面影 玉村宿", mName: "宿場ギツネ" },
+            { name: "玉村小学校", monster: "🌊", karuta: "【り】利根川の 恵みゆたかに 水清く", mName: "タマムラ・リュウ" },
+            { name: "上陽小学校", monster: "🌾", karuta: "【に】にぎわえる 絹市場跡の 賑わしさ", mName: "シルク・ワーム" },
+            { name: "芝根小学校", monster: "🦅", karuta: "【ま】松並木 歴史をかたる 例幣使", mName: "レイヘイ・ホーク" },
+            { name: "中央小学校", monster: "🌸", karuta: "【う】美しい 自然を守る 文化村", mName: "サクラ・プランツ" },
+            { name: "南小学校", monster: "🐎", karuta: "【よ】よく走る 駿馬そろえて 馬市場", mName: "シュンマ・ダッシュ" },
+            { name: "玉村中学校", monster: "⛩️", karuta: "【み】みごとな木 立ち並びたる 八幡宮", mName: "ハチマン・ギガ" },
+            { name: "南中学校", monster: "🍦", karuta: "【わ】我が町の 特産誇る 道の駅", mName: "ミチノエキ・コング" }
+        ];
+
+        let selectedIdx = 0;
+
+        window.onload = function() {
+            // シリアル管理
+            let serial = localStorage.getItem('tamamura_serial_demo');
+            if (!serial) {
+                serial = String(Math.floor(1000 + Math.random() * 9000));
+                localStorage.setItem('tamamura_serial_demo', serial);
+            }
+            document.getElementById('serial-display').innerText = `個人シリアル番号: 【 ${serial} 】`;
+            
+            // ポイント読込
+            let pts = localStorage.getItem('tamamura_points_demo') || '0';
+            document.getElementById('total-pt-display').innerText = pts;
+        };
+
+        function tapPin(idx) {
+            selectedIdx = idx;
+            const data = locations[idx];
+            document.getElementById('popTitle').innerText = data.name;
+            document.getElementById('popMonster').innerText = data.monster;
+            document.getElementById('popKaruta').innerHTML = `<strong>${data.karuta}</strong><br><span style='font-size:11px;color:#94a3b8;'>出現：${data.mName}</span>`;
+            document.getElementById('popupOverlay').style.display = 'flex';
+        }
+
+        function hidePopup() {
+            document.getElementById('popupOverlay').style.display = 'none';
+        }
+
+        function goToBattle() {
+            // 選択したモンスター情報をセッションストレージに保存して画面遷移
+            sessionStorage.setItem('current_battle_name', locations[selectedIdx].name);
+            sessionStorage.setItem('current_battle_monster', locations[selectedIdx].monster);
+            window.location.href = 'level1.html';
+        }
+    </script>
+</body>
+</html>
