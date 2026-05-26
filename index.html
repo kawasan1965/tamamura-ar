@@ -3,176 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>たまむらふぃーるど - ポータルマップ</title>
+    <title>たまむらふぃーるど - 拠点選択マップ</title>
     <style>
         :root {
-            --primary: #003366;
+            --primary: #005088;
             --accent: #facc15;
             --dark: #0f172a;
-            --light: #f8fafc;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--dark); color: var(--light); overflow: hidden; }
-        
-        .header { background: rgba(15, 23, 42, 0.95); padding: 15px; text-align: center; border-bottom: 2px solid var(--primary); z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .header h1 { font-size: 20px; color: var(--accent); letter-spacing: 1px; }
-        .serial-badge { display: inline-block; background: #334155; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin-top: 5px; color: #cbd5e1; border: 1px solid #475569; }
-        
-        /* 地図エリア */
-        .map-container { flex-grow: 1; position: relative; width: 100%; height: calc(100vh - 120px); background-color: #0b1329; overflow: hidden; }
-        .map-bg-grid { position: absolute; width: 100%; height: 100%; background-size: 30px 30px; background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px); }
-        
-        /* ★玉村町の正確な外郭（くっきりとした白線で描画） */
-        .tamamura-polygon {
-            position: absolute; top: 50%; left: 50%;
-            width: 95vw; height: 95vw; max-width: 520px; max-height: 520px;
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--dark); color: white; overflow: hidden; }
+
+        /* 全画面カメラ映像エリア */
+        #video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        .overlay-mask { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); z-index: 2; pointer-events: none; }
+
+        /* 【新機能】玉村町の形をした外郭白線コンテナ */
+        .tamamura-map-container {
+            position: absolute;
+            top: 45%;
+            left: 50%;
             transform: translate(-50%, -50%);
-            /* 玉村町の実在する形状データをSVGライクなポリゴンで再現 */
-            clip-path: polygon(
-                10% 45%, 18% 35%, 28% 25%, 45% 18%, 60% 12%, 75% 18%, 88% 28%, 95% 42%, 
-                92% 58%, 85% 72%, 72% 82%, 58% 88%, 45% 85%, 32% 88%, 22% 78%, 12% 65%, 8% 55%
-            );
-            background: rgba(255, 255, 255, 0.04);
-            border: 4px solid #ffffff; /* はっきりとした白線 */
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-            pointer-events: none;
+            width: 90%;
+            max-width: 400px;
+            height: 35vh;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none; /* 下にあるボタンを邪魔しない */
         }
-        /* 外郭の輪郭線をはっきり見せるための擬似ボーダーレイヤー */
-        .tamamura-outline-line {
-            position: absolute; top: 50%; left: 50%;
-            width: 95vw; height: 95vw; max-width: 520px; max-height: 520px;
-            transform: translate(-50%, -50%);
-            border: 3px solid #ffffff; /* 白線 */
-            border-radius: 40% 60% 42% 58% / 55% 45% 55% 45%; /* 扇型の外郭ライン */
-            pointer-events: none;
-            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        /* Googleマップからトレースした精巧な玉村町のSVG白線 */
+        .tamamura-outline {
+            width: 100%;
+            height: 100%;
+            stroke: rgba(255, 255, 255, 0.75);
+            stroke-width: 3;
+            fill: rgba(255, 255, 255, 0.05); /* ほんのり中を明るく */
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
         }
 
-        /* 利根川ライン */
-        .map-river { position: absolute; bottom: 15%; left: -10%; width: 120%; height: 40px; background: rgba(37, 99, 235, 0.2); transform: rotate(-6deg); border-top: 2px dashed rgba(255,255,255,0.4); pointer-events: none; }
-        
-        /* 拠点ピンの設定（確実なクリックのために判定を拡大） */
-        .pin { position: absolute; width: 40px; height: 40px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid white; z-index: 10; }
-        .pin-inner { transform: rotate(45deg); font-size: 18px; pointer-events: none; }
-        .pin-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%) rotate(45deg); background: rgba(15,23,42,0.95); color: white; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid rgba(255,255,255,0.3); pointer-events: none; }
-        
-        /* ピンの色 */
-        .type-factory { background: #4f46e5; }
-        .type-child { background: #f59e0b; }
-        .type-library { background: #10b981; }
-        .type-school { background: #ef4444; }
-        .type-community { background: #06b6d4; }
+        /* ヘッダーHUD */
+        .header-hud {
+            position: absolute; top: 20px; left: 15px; right: 15px;
+            background: rgba(15, 23, 42, 0.85); padding: 12px 20px; border-radius: 16px;
+            z-index: 10; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .title-group h1 { font-size: 18px; color: var(--accent); }
+        .title-group p { font-size: 11px; color: #94a3b8; }
+        .points-badge { background: linear-gradient(135deg, #10b981, #059669); padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
 
-        .footer-status { background: #1e293b; padding: 12px; text-align: center; font-size: 13px; color: #94a3b8; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; }
+        /* ガイドメッセージ */
+        .map-guide {
+            position: absolute; bottom: 185px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8); padding: 8px 16px; border-radius: 20px;
+            font-size: 12px; font-weight: bold; z-index: 10; border: 1px solid rgba(255,255,255,0.2);
+            text-align: center; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
 
-        /* ポップアップ（構造を極限までシンプルにして絶対バグらない設計に変更） */
-        .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(5px); }
-        .popup-content { background: #1e293b; border-radius: 16px; width: 85%; max-width: 320px; padding: 25px; border: 3px solid var(--accent); text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
-        .popup-title { font-size: 20px; color: #ffffff; font-weight: bold; margin-bottom: 10px; }
-        .popup-monster { font-size: 70px; margin: 15px 0; }
-        .popup-karuta { background: #0f172a; padding: 12px; border-radius: 8px; font-size: 13px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid var(--accent); text-align: left; line-height: 1.5; }
-        .popup-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 14px 24px; font-size: 16px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; }
-        .popup-close-btn { background: #475569; color: white; border: none; padding: 8px; font-size: 12px; border-radius: 6px; margin-top: 10px; width: 100%; cursor: pointer; }
+        /* 拠点（モンスター出現スポット）選択用横スクロールメニュー */
+        .spot-carousel {
+            position: absolute; bottom: 40px; left: 0; width: 100%;
+            display: flex; gap: 15px; padding: 0 20px 15px 20px;
+            overflow-x: auto; scroll-snap-type: x mandatory; z-index: 10;
+            -webkit-overflow-scrolling: touch;
+        }
+        /* スクロールバー非表示 */
+        .spot-carousel::-webkit-scrollbar { display: none; }
+        
+        .spot-card {
+            flex: 0 0 75%; scroll-snap-align: center;
+            background: rgba(15, 23, 42, 0.95); border-radius: 18px; padding: 15px;
+            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 15px;
+        }
+        .spot-icon { font-size: 36px; background: #1e293b; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 14px; border: 1px solid #334155; }
+        .spot-info { flex-grow: 1; }
+        .spot-info h3 { font-size: 15px; margin-bottom: 2px; color: white; }
+        .spot-info p { font-size: 11px; color: #94a3b8; margin-bottom: 8px; }
+        
+        .battle-start-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626); color: white;
+            border: none; padding: 8px 14px; font-size: 12px; font-weight: bold;
+            border-radius: 8px; cursor: pointer; box-shadow: 0 3px #991b1b;
+        }
+        .battle-start-btn:active { transform: translateY(2px); box-shadow: 0 1px #991b1b; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>たまむらふぃーるど</h1>
-        <div id="serial-display" class="serial-badge">シリアル番号: 読込中...</div>
-    </div>
-    
-    <div class="map-container">
-        <div class="map-bg-grid"></div>
-        
-        <div class="tamamura-polygon"></div>
-        <div class="tamamura-outline-line"></div>
-        
-        <div class="map-river"></div>
-        
-        <div class="pin type-factory" style="top: 50%; left: 50%;" onclick="tapPin(0)"><div class="pin-inner">🐉</div><div class="pin-label">ケアコム工場</div></div>
-        <div class="pin type-child" style="top: 28%; left: 52%;" onclick="tapPin(1)"><div class="pin-inner">👶</div><div class="pin-label">健康の森児</div></div>
-        <div class="pin type-child" style="top: 60%; left: 30%;" onclick="tapPin(2)"><div class="pin-inner">👶</div><div class="pin-label">西児童館</div></div>
-        <div class="pin type-child" style="top: 32%; left: 70%;" onclick="tapPin(3)"><div class="pin-inner">👶</div><div class="pin-label">上陽児童館</div></div>
-        <div class="pin type-child" style="top: 45%; left: 38%;" onclick="tapPin(4)"><div class="pin-inner">👶</div><div class="pin-label">中央児童館</div></div>
-        <div class="pin type-child" style="top: 70%; left: 62%;" onclick="tapPin(5)"><div class="pin-inner">👶</div><div class="pin-label">南児童館</div></div>
-        <div class="pin type-library" style="top: 40%; left: 24%;" onclick="tapPin(6)"><div class="pin-inner">📚</div><div class="pin-label">町立図書館</div></div>
-        <div class="pin type-community" style="top: 55%; left: 66%;" onclick="tapPin(7)"><div class="pin-inner">🏡</div><div class="pin-label">公民館</div></div>
-        <div class="pin type-school" style="top: 42%; left: 16%;" onclick="tapPin(8)"><div class="pin-inner">🏫</div><div class="pin-label">玉村小</div></div>
-        <div class="pin type-school" style="top: 22%; left: 65%;" onclick="tapPin(9)"><div class="pin-inner">🏫</div><div class="pin-label">上陽小</div></div>
-        <div class="pin type-school" style="top: 75%; left: 32%;" onclick="tapPin(10)"><div class="pin-inner">🏫</div><div class="pin-label">芝根小</div></div>
-        <div class="pin type-school" style="top: 36%; left: 45%;" onclick="tapPin(11)"><div class="pin-inner">🏫</div><div class="pin-label">中央小</div></div>
-        <div class="pin type-school" style="top: 65%; left: 76%;" onclick="tapPin(12)"><div class="pin-inner">🏫</div><div class="pin-label">南小</div></div>
-        <div class="pin type-school" style="top: 52%; left: 32%;" onclick="tapPin(13)"><div class="pin-inner">🎓</div><div class="pin-label">玉村中</div></div>
-        <div class="pin type-school" style="top: 74%; left: 48%;" onclick="tapPin(14)"><div class="pin-inner">🎓</div><div class="pin-label">南中</div></div>
+    <video id="video" autoplay playsinline muted></video>
+    <div class="overlay-mask"></div>
+
+    <div class="header-hud">
+        <div class="title-group">
+            <h1>たまむらふぃーるど</h1>
+            <p>実証実験モード - 玉村町を調査せよ</p>
+        </div>
+        <div class="points-badge">通算: <span id="total-points">0</span> PT</div>
     </div>
 
-    <div class="footer-status">
-        現在の合計獲得ポイント: <span id="total-pt-display" style="color:var(--accent); font-weight:bold;">0</span> PT
+    <div class="tamamura-map-container">
+        <svg class="tamamura-outline" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+            <path d="
+                M 45,15 
+                L 55,16 L 60,18 L 62,25 L 68,27 L 72,24 L 75,32 
+                L 68,43 L 73,50 L 76,55 L 75,64 L 88,77 L 85,83 
+                L 76,82 L 72,88 L 60,86 L 50,78 L 47,82 L 40,82 
+                L 35,76 L 31,77 L 27,68 L 33,63 L 33,55 L 25,52 
+                L 24,46 L 30,39 L 36,40 L 40,32 L 40,24 L 43,20 Z
+            "/>
+        </svg>
     </div>
 
-    <div id="popupOverlay" class="popup-overlay">
-        <div class="popup-content">
-            <div id="popTitle" class="popup-title">施設名</div>
-            <div id="popMonster" class="popup-monster">🦖</div>
-            <div id="popKaruta" class="popup-karuta">歌留多データ</div>
-            <button class="popup-btn" onclick="goToBattle()">ARバトル（Lv.1）を開始</button>
-            <button class="popup-close-btn" onclick="hidePopup()">閉じる</button>
+    <div class="map-guide">左右にスワイプしてバトル拠点を選択 ▽</div>
+
+    <div class="spot-carousel">
+        <div class="spot-card">
+            <div class="spot-icon">🌲</div>
+            <div class="spot-info">
+                <h3>北部公園スポット</h3>
+                <p>出現：たまご竜 (LV.1)</p>
+                <button class="battle-start-btn" onclick="goToBattle('北部公園', '🦖')">バトル開始</button>
+            </div>
+        </div>
+        <div class="spot-card">
+            <div class="spot-icon">🏫</div>
+            <div class="spot-info">
+                <h3>玉村小学校スポット</h3>
+                <p>出現：わんぱく犬 (LV.1)</p>
+                <button class="battle-start-btn" onclick="goToBattle('玉村小学校', '🐶')">バトル開始</button>
+            </div>
+        </div>
+        <div class="spot-card">
+            <div class="spot-icon">🌊</div>
+            <div class="spot-info">
+                <h3>烏川・岩倉橋スポット</h3>
+                <p>出現：リバーカッパ (LV.1)</p>
+                <button class="battle-start-btn" onclick="goToBattle('烏川・岩倉橋', '🥒')">バトル開始</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const locations = [
-            { name: "ケアコム群馬工場", monster: "🐉", karuta: "【た】玉村は 鶴の扇の 要役", mName: "カナメ・ドラゴン" },
-            { name: "健康の森児童館", monster: "🌳", karuta: "【け】健康の森 映える緑の 運動公園", mName: "モリ・レックス" },
-            { name: "西児童館", monster: "🌹", karuta: "【は】華やかに 気品あふれる バラの花", mName: "ローズ・フェアリー" },
-            { name: "上陽児童館", monster: "🛡️", karuta: "【く】勲章の つたわる誉れ 軍配山", mName: "グンバイ・ナイト" },
-            { name: "中央児童館", monster: "🎆", karuta: "【お】大きな輪 夜空をこがす 花火大会", mName: "ハナビ・スパーク" },
-            { name: "南児童館", monster: "🦆", karuta: "【ぬ】ぬくもりを 残して今に 家鴨塚", mName: "アヒル・ファントム" },
-            { name: "町立図書館", monster: "🦉", karuta: "【せ】世界一 和算の奇才 小野栄重", mName: "ワサン・ミミズク" },
-            { name: "公民館（居場所）", monster: "🦊", karuta: "【な】なつかしき 宿場の面影 玉村宿", mName: "宿場ギツネ" },
-            { name: "玉村小学校", monster: "🌊", karuta: "【り】利根川の 恵みゆたかに 水清く", mName: "タマムラ・リュウ" },
-            { name: "上陽小学校", monster: "🌾", karuta: "【に】にぎわえる 絹市場跡の 賑わしさ", mName: "シルク・ワーム" },
-            { name: "芝根小学校", monster: "🦅", karuta: "【ま】松並木 歴史をかたる 例幣使", mName: "レイヘイ・ホーク" },
-            { name: "中央小学校", monster: "🌸", karuta: "【う】美しい 自然を守る 文化村", mName: "サクラ・プランツ" },
-            { name: "南小学校", monster: "🐎", karuta: "【よ】よく走る 駿馬そろえて 馬市場", mName: "シュンマ・ダッシュ" },
-            { name: "玉村中学校", monster: "⛩️", karuta: "【み】みごとな木 立ち並びたる 八幡宮", mName: "ハチマン・ギガ" },
-            { name: "南中学校", monster: "🍦", karuta: "【わ】我が町の 特産誇る 道の駅", mName: "ミチノエキ・コング" }
-        ];
-
-        let selectedIdx = 0;
-
         window.onload = function() {
-            // シリアル管理
-            let serial = localStorage.getItem('tamamura_serial_demo');
-            if (!serial) {
-                serial = String(Math.floor(1000 + Math.random() * 9000));
-                localStorage.setItem('tamamura_serial_demo', serial);
-            }
-            document.getElementById('serial-display').innerText = `個人シリアル番号: 【 ${serial} 】`;
-            
-            // ポイント読込
+            // ローカルストレージからポイントを復元して表示
             let pts = localStorage.getItem('tamamura_points_demo') || '0';
-            document.getElementById('total-pt-display').innerText = pts;
+            document.getElementById('total-points').innerText = pts;
+
+            // カメラの起動処理
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+                .then(stream => { document.getElementById('video').srcObject = stream; })
+                .catch(() => { console.log("カメラのない環境（PC等）または許可なしで起動しました"); });
         };
 
-        function tapPin(idx) {
-            selectedIdx = idx;
-            const data = locations[idx];
-            document.getElementById('popTitle').innerText = data.name;
-            document.getElementById('popMonster').innerText = data.monster;
-            document.getElementById('popKaruta').innerHTML = `<strong>${data.karuta}</strong><br><span style='font-size:11px;color:#94a3b8;'>出現：${data.mName}</span>`;
-            document.getElementById('popupOverlay').style.display = 'flex';
-        }
-
-        function hidePopup() {
-            document.getElementById('popupOverlay').style.display = 'none';
-        }
-
-        function goToBattle() {
-            // 選択したモンスター情報をセッションストレージに保存して画面遷移
-            sessionStorage.setItem('current_battle_name', locations[selectedIdx].name);
-            sessionStorage.setItem('current_battle_monster', locations[selectedIdx].monster);
+        // バトル画面への安全なデータ引き渡しと遷移
+        function goToBattle(name, monster) {
+            sessionStorage.setItem('current_battle_name', name + 'バトル');
+            sessionStorage.setItem('current_battle_monster', monster);
             window.location.href = 'level1.html';
         }
     </script>
