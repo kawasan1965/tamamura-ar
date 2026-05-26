@@ -328,26 +328,60 @@
             } catch(e){}
         }
 
+// スーパーマリオ風のキャッチーな3和音BGM（上書き用）
         function startBpmMusic() {
-            const notesTrack1 = [261.63, 293.66, 329.63, 349.23, 392.00, 349.23, 329.63, 293.66]; 
-            const notesTrack2 = [196.00, 220.00, 246.94, 261.63, 293.66, 261.63, 246.94, 220.00]; 
+            // 主旋律（マリオ風の軽快なメロディ：矩形波 square）
+            const track1 = [
+                329.63, 329.63, 0,      329.63, 0,      261.63, 329.63, 0, 
+                392.00, 0,      0,      0,      196.00, 0,      0,      0,
+                261.63, 0,      0,      196.00, 0,      0,      164.81, 0,
+                220.00, 0,      246.94, 0,      233.08, 220.00, 0,      0
+            ];
+            
+            // ハーモニー・伴奏（3度・5度上のハモり：矩形波 square）
+            const track2 = [
+                392.00, 392.00, 0,      392.00, 0,      329.63, 392.00, 0,
+                523.25, 0,      0,      0,      392.00, 0,      0,      0,
+                523.25, 0,      0,      392.00, 0,      0,      329.63, 0,
+                440.00, 0,      493.88, 0,      466.16, 440.00, 0,      0
+            ];
+            
+            // コミカルなベース（跳ねるような低音：三角波 triangle）
+            const bass = [
+                130.81, 0,      130.81, 0,      130.81, 0,      130.81, 0,
+                196.00, 0,      196.00, 0,      196.00, 196.00, 98.00,  0,
+                130.81, 0,      98.00,  0,      82.41,  0,      65.41,  0,
+                110.00, 0,      123.47, 0,      116.54, 110.00, 0,      0
+            ];
+            
             let index = 0;
 
+            // マリオらしい超快活なテンポ（125ミリ秒＝1秒間に8歩刻むペース）
             bgmInterval = setInterval(() => {
-                playTone(notesTrack1[index], 'square', 0.2, 0.04);
-                if (index % 2 === 0) {
-                    playTone(notesTrack2[index], 'triangle', 0.3, 0.06);
-                }
-                if (index % 4 === 2) {
-                    playTone(587.33, 'sine', 0.1, 0.02); 
+                if (!gameHasStarted) return;
+
+                // 1和音目：主旋律（音を短くパキッと切ることでジャンプ感を表現）
+                if (track1[index] > 0) {
+                    playTone(track1[index], 'square', 0.1, 0.03);
                 }
                 
+                // 2和音目：ハーモニー（主旋律に重ねてファミコンらしい厚みを出す）
+                if (track2[index] > 0) {
+                    playTone(track2[index], 'square', 0.08, 0.02);
+                }
+                
+                // 3和音目：ポコポコ跳ねるベースライン（裏拍で刻む）
+                if (bass[index] > 0) {
+                    playTone(bass[index], 'triangle', 0.12, 0.06);
+                }
+                
+                // ミスしていなければ案内テキストをループに同期
                 if (!isMessageLocked) {
                     document.getElementById('instruction').innerText = selected === target ? "準備完了！ 攻撃ボタンDを狙え！" : `選択ボタン【 ${target} 】を押そう！`;
                 }
 
-                index = (index + 1) % notesTrack1.length;
-            }, 250); 
+                index = (index + 1) % track1.length;
+            }, 125); 
         }
 
         function playFanfare() {
